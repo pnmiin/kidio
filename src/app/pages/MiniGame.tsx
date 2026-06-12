@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { KidioPageHeader } from '../../components/KidioPageHeader';
+import { advanceJourney, type JourneyPathKey } from '../utils/journeyProgress';
 
 const initialWords = [
   { id: 1, text: 'Dog', image: '/images/animals/dog.png', matched: false },
@@ -19,6 +20,25 @@ export function MiniGame() {
   const [draggedWord, setDraggedWord] = useState<string | null>(null);
   const [hoveredZone, setHoveredZone] = useState<number | null>(null);
   const [wrongDropZone, setWrongDropZone] = useState<number | null>(null);
+
+  const completeCurrentJourneyStep = () => {
+    const storedLevel =
+      localStorage.getItem('currentKidLevel') ||
+      localStorage.getItem('kidioPath');
+    const pathKey: JourneyPathKey =
+      storedLevel === 'builder'
+        ? 'builder'
+        : storedLevel === 'story' || storedLevel === 'story_explorer'
+          ? 'story'
+          : storedLevel === 'speaking' || storedLevel === 'speaking_hero'
+            ? 'speaking'
+            : storedLevel === 'explorer'
+              ? 'explorer'
+              : 'starter';
+    const topicCount = pathKey === 'starter' ? 5 : 6;
+
+    advanceJourney(pathKey, topicCount);
+  };
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, text: string) => {
     setDraggedWord(text);
@@ -127,7 +147,10 @@ export function MiniGame() {
             transition={{ delay: 0.9 }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/vocabulary-animals')}
+            onClick={() => {
+              completeCurrentJourneyStep();
+              navigate('/vocabulary-animals');
+            }}
             className="w-full py-5 rounded-full bg-gradient-to-r from-[#2BADEE] to-[#1E90D0] text-white text-2xl font-bold shadow-lg transition-all duration-300 flex items-center justify-center gap-3"
           >
             NEXT
@@ -257,7 +280,10 @@ export function MiniGame() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/vocabulary-animals')}
+                onClick={() => {
+                  completeCurrentJourneyStep();
+                  navigate('/vocabulary-animals');
+                }}
                 className="px-8 py-4 rounded-full bg-gradient-to-r from-[#2BADEE] to-[#1E90D0] text-white text-xl font-bold shadow-lg transition-all duration-300 flex items-center gap-3"
               >
                 NEXT LESSON

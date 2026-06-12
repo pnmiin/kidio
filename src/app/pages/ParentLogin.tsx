@@ -1,43 +1,82 @@
-import { useNavigate } from 'react-router';
-import { motion } from 'motion/react';
-import { Mail, Lock, User } from 'lucide-react';
-import { useState } from 'react';
-import { PageBackground } from '../../components/PageBackground';
-import { KidioPageHeader } from '../../components/KidioPageHeader';
+import { useNavigate } from "react-router";
+import { motion } from "motion/react";
+import { Mail, Lock, User } from "lucide-react";
+import { useState } from "react";
+import { PageBackground } from "../../components/PageBackground";
+import { KidioPageHeader } from "../../components/KidioPageHeader";
+import { isAdminEmail } from "../utils/adminAuth";
+
+const DEMO_PARENT_EMAIL = "demo@kidio.com";
+const DEMO_PARENT_PASSWORD = "123456";
 
 export function ParentLogin() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
+    name: "",
+    email: DEMO_PARENT_EMAIL,
+    password: DEMO_PARENT_PASSWORD,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    const normalizedEmail = formData.email.trim().toLowerCase();
+
+    if (isAdminEmail(normalizedEmail)) {
+      localStorage.setItem("currentParent", normalizedEmail);
+      localStorage.setItem("currentUserRole", "admin");
+      navigate("/admin");
+      return;
+    }
+
     if (isLogin) {
-      // Login logic
-      const savedParent = localStorage.getItem('parentData');
+      if (
+        normalizedEmail === DEMO_PARENT_EMAIL &&
+        formData.password === DEMO_PARENT_PASSWORD
+      ) {
+        const savedParent = JSON.parse(
+          localStorage.getItem("parentData") || "{}",
+        );
+        const demoParent = {
+          ...savedParent,
+          name: savedParent.name || "KIDIO Parent",
+          email: DEMO_PARENT_EMAIL,
+          password: DEMO_PARENT_PASSWORD,
+          kids: Array.isArray(savedParent.kids) ? savedParent.kids : [],
+        };
+
+        localStorage.setItem("parentData", JSON.stringify(demoParent));
+        localStorage.setItem("currentParent", DEMO_PARENT_EMAIL);
+        localStorage.setItem("currentUserRole", "parent");
+        localStorage.removeItem("linkedKidId");
+        navigate("/parent-dashboard");
+        return;
+      }
+
+      const savedParent = localStorage.getItem("parentData");
       if (savedParent) {
         const parentData = JSON.parse(savedParent);
-        if (parentData.email === formData.email && parentData.password === formData.password) {
-          localStorage.setItem('currentParent', formData.email);
-          
+        if (
+          parentData.email?.toLowerCase() === normalizedEmail &&
+          parentData.password === formData.password
+        ) {
+          localStorage.setItem("currentParent", normalizedEmail);
+          localStorage.setItem("currentUserRole", "parent");
+          localStorage.removeItem("linkedKidId");
+
           // Check if there's a pending plan to purchase
-          const pendingPlan = sessionStorage.getItem('pendingPlan');
+          const pendingPlan = sessionStorage.getItem("pendingPlan");
           if (pendingPlan) {
-            sessionStorage.removeItem('pendingPlan');
+            sessionStorage.removeItem("pendingPlan");
             navigate(`/checkout?plan=${pendingPlan}`);
           } else {
-            navigate('/parent-dashboard');
+            navigate("/parent-dashboard");
           }
         } else {
-          alert('Incorrect email or password!');
+          alert("Incorrect email or password!");
         }
       } else {
-        alert('Account does not exist! Please sign up.');
+        alert("Account does not exist! Please sign up.");
       }
     } else {
       // Register logic
@@ -48,16 +87,18 @@ export function ParentLogin() {
         kids: [],
         createdAt: new Date().toISOString(),
       };
-      localStorage.setItem('parentData', JSON.stringify(parentData));
-      localStorage.setItem('currentParent', formData.email);
-      
+      localStorage.setItem("parentData", JSON.stringify(parentData));
+      localStorage.setItem("currentParent", formData.email);
+      localStorage.setItem("currentUserRole", "parent");
+      localStorage.removeItem("linkedKidId");
+
       // Check if there's a pending plan to purchase
-      const pendingPlan = sessionStorage.getItem('pendingPlan');
+      const pendingPlan = sessionStorage.getItem("pendingPlan");
       if (pendingPlan) {
-        sessionStorage.removeItem('pendingPlan');
+        sessionStorage.removeItem("pendingPlan");
         navigate(`/checkout?plan=${pendingPlan}`);
       } else {
-        navigate('/parent-dashboard');
+        navigate("/parent-dashboard");
       }
     }
   };
@@ -75,7 +116,7 @@ export function ParentLogin() {
         >
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              {isLogin ? 'Login' : 'Sign Up'}
+              {isLogin ? "Login" : "Sign Up"}
             </h1>
             <p className="text-gray-600">For Parents</p>
           </div>
@@ -90,7 +131,9 @@ export function ParentLogin() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-[#2BADEE] outline-none transition-colors"
                   placeholder="Enter your full name"
                   required
@@ -106,7 +149,9 @@ export function ParentLogin() {
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
                 className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-[#2BADEE] outline-none transition-colors"
                 placeholder="email@example.com"
                 required
@@ -121,7 +166,9 @@ export function ParentLogin() {
               <input
                 type="password"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
                 className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-[#2BADEE] outline-none transition-colors"
                 placeholder="••••••••"
                 required
@@ -135,7 +182,7 @@ export function ParentLogin() {
               type="submit"
               className="w-full py-4 bg-gradient-to-r from-[#2BADEE] to-[#1E90D0] text-white rounded-full text-lg font-bold shadow-lg hover:shadow-xl transition-all"
             >
-              {isLogin ? 'Login' : 'Sign Up'}
+              {isLogin ? "Login" : "Sign Up"}
             </motion.button>
           </form>
 
@@ -145,12 +192,12 @@ export function ParentLogin() {
               onClick={() => setIsLogin(!isLogin)}
               className="text-[#2BADEE] hover:underline font-semibold"
             >
-              {isLogin ? "Don't have an account? Sign up now" : 'Already have an account? Login'}
+              {isLogin
+                ? "Don't have an account? Sign up now"
+                : "Already have an account? Login"}
             </button>
           </div>
         </motion.div>
-
-        
       </div>
     </PageBackground>
   );

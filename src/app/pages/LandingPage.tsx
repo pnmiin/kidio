@@ -31,25 +31,25 @@ const featureCards = [
   {
     title: "Watch",
     description: "Fun videos & animated stories",
-    image: "/assets/ChatGPT Image 10_13_55 1 thg 6, 2026 (1).png",
+    image: "/assets/feature-watch-video.png",
     color: "text-sky-500 border-sky-200",
   },
   {
     title: "Listen",
     description: "Songs, sounds & native pronunciation",
-    image: "/assets/ChatGPT Image 10_13_55 1 thg 6, 2026 (2).png",
+    image: "/assets/feature-listen-audio.png",
     color: "text-violet-500 border-violet-200",
   },
   {
     title: "Speak",
     description: "Practice speaking with confidence",
-    image: "/assets/ChatGPT Image 10_13_55 1 thg 6, 2026 (3).png",
+    image: "/assets/feature-speak-microphone.png",
     color: "text-emerald-500 border-emerald-200",
   },
   {
     title: "Play",
     description: "Exciting games that build skills",
-    image: "/assets/ChatGPT Image 10_13_56 1 thg 6, 2026 (4).png",
+    image: "/assets/feature-play-game.png",
     color: "text-orange-500 border-orange-200",
   },
 ] as const;
@@ -58,19 +58,19 @@ const pathSteps = [
   {
     title: "Pick a level",
     description: "Choose the perfect level for your child.",
-    image: "/assets/ChatGPT Image 10_15_10 1 thg 6, 2026 (1).png",
+    image: "/assets/learning-path-pick-level.png",
     badge: "bg-[#0877f2]",
   },
   {
     title: "Learn by playing",
     description: "Fun lessons & activities they'll love.",
-    image: "/assets/ChatGPT Image 10_15_10 1 thg 6, 2026 (2).png",
+    image: "/assets/learning-path-play-lesson.png",
     badge: "bg-violet-500",
   },
   {
     title: "Earn stars",
     description: "Complete missions and earn awesome rewards.",
-    image: "/assets/ChatGPT Image 10_15_11 1 thg 6, 2026 (3).png",
+    image: "/assets/learning-path-earn-stars.png",
     badge: "bg-emerald-500",
   },
   {
@@ -317,7 +317,7 @@ function SkyObjectField() {
       ].map((className, index) => (
         <img
           key={className}
-          src={`/assets/start${index + 1}.png`}
+          src={`/assets/decorative-star-${index + 1}.png`}
           alt=""
           className={`hero-sparkle ${className}`}
           draggable={false}
@@ -527,7 +527,7 @@ export function LandingPage() {
               ].map((className, index) => (
                 <img
                   key={className}
-                  src={`/assets/start${index + 1}.png`}
+                  src={`/assets/decorative-star-${index + 1}.png`}
                   alt=""
                   className={`absolute z-[2] object-contain ${className}`}
                   draggable={false}
@@ -536,19 +536,19 @@ export function LandingPage() {
               <img
                 src="/assets/cloud.png"
                 alt=""
-                className="pointer-events-none absolute bottom-[190px] right-[260px] z-[3] w-[300px] object-contain opacity-[0.45]"
+                className="pointer-events-none absolute left-[-20px] top-[105px] z-[3] w-[220px] object-contain opacity-[0.42]"
                 draggable={false}
               />
               <img
                 src="/assets/cloud.png"
                 alt=""
-                className="pointer-events-none absolute bottom-[198px] right-[60px] z-[4] w-[180px] object-contain opacity-60"
+                className="pointer-events-none absolute right-[15px] top-[145px] z-[3] w-[165px] object-contain opacity-50"
                 draggable={false}
               />
               <img
                 src="/assets/cloud.png"
                 alt=""
-                className="pointer-events-none absolute bottom-[68px] right-[60px] z-[4] w-[180px] object-contain opacity-60"
+                className="pointer-events-none absolute bottom-[30px] left-[15px] z-[4] w-[195px] object-contain opacity-55"
                 draggable={false}
               />
               <img
@@ -576,13 +576,13 @@ export function LandingPage() {
               <img
                 src="/assets/cloud.png"
                 alt=""
-                className="pointer-events-none absolute bottom-[28px] right-[210px] z-[7] w-[360px] object-contain opacity-[0.78]"
+                className="pointer-events-none absolute bottom-[-15px] left-[210px] z-[4] w-[230px] object-contain opacity-55"
                 draggable={false}
               />
               <img
                 src="/assets/cloud.png"
                 alt=""
-                className="pointer-events-none absolute bottom-[72px] right-0 z-[7] w-[260px] object-contain opacity-70"
+                className="pointer-events-none absolute right-[-25px] top-[20px] z-[3] w-[205px] object-contain opacity-45"
                 draggable={false}
               />
             </div>
@@ -751,7 +751,7 @@ export function LandingPage() {
             <div className="mt-6 rounded-[22px] border border-sky-100 bg-white p-4 shadow-[0_12px_28px_rgba(43,128,190,0.09)]">
               <div className="flex items-center gap-3">
                 <img
-                  src="/assets/ChatGPT Image 10_15_27 1 thg 6, 2026 (1).png"
+                  src="/assets/parent-community-rating-star.png"
                   alt=""
                   className="h-14 w-14 rounded-2xl object-contain"
                 />
@@ -789,7 +789,7 @@ export function LandingPage() {
           <div className="flex flex-col items-center justify-between gap-6 overflow-hidden rounded-[30px] border border-white/80 bg-gradient-to-r from-violet-50 via-pink-50 to-sky-50 px-8 py-8 shadow-[0_22px_48px_rgba(43,128,190,0.12)] lg:flex-row">
             <div className="flex items-center gap-6">
               <img
-                src="/assets/ChatGPT Image 10_15_11 1 thg 6, 2026 (3).png"
+                src="/assets/learning-path-earn-stars.png"
                 alt=""
                 className="h-24 w-24 object-contain"
               />
@@ -810,7 +810,7 @@ export function LandingPage() {
                 Start Free Trial
               </button>
               <img
-                src="/assets/ChatGPT Image 10_15_27 1 thg 6, 2026 (2).png"
+                src="/assets/start-learning-backpack.png"
                 alt=""
                 className="hidden h-28 w-28 object-contain md:block"
               />

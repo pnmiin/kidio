@@ -4,7 +4,7 @@ import { SelectAccountType } from "./pages/SelectAccountType";
 import { ParentLogin } from "./pages/ParentLogin";
 import { KidLogin } from "./pages/KidLogin";
 import { KidDashboard } from "./pages/KidDashboard";
-import { LearningMap } from "./pages/LearningMap";
+import { LearningJourneyPage } from "./pages/LearningJourneyPage";
 import { VideoLesson } from "./pages/VideoLesson";
 import { MiniGame } from "./pages/MiniGame";
 import { RewardPage } from "./pages/RewardPage";
@@ -15,6 +15,10 @@ import { CustomerSupport } from "./pages/CustomerSupport";
 import { TraceLetterGame } from "./pages/TraceLetterGame";
 import { ColorGamesPage } from "./pages/ColorGamesPage";
 import { VocabularyAnimals } from "./pages/VocabularyAnimals";
+import { PlacementQuizPage } from "./pages/PlacementQuizPage";
+import { BodyPartsAdventurePage } from "./pages/BodyPartsAdventurePage";
+import { BodyPartsReviewPage } from "./pages/BodyPartsReviewPage";
+import { AdminDashboard } from "../pages/admin/AdminDashboard";
 
 export const router = createBrowserRouter([
   {
@@ -34,12 +38,24 @@ export const router = createBrowserRouter([
     Component: KidLogin,
   },
   {
+    path: "/placement",
+    Component: PlacementQuizPage,
+  },
+  {
+    path: "/kid-home",
+    Component: KidDashboard,
+  },
+  {
     path: "/kid-dashboard",
     Component: KidDashboard,
   },
   {
     path: "/learning-map",
-    Component: LearningMap,
+    Component: LearningJourneyPage,
+  },
+  {
+    path: "/learning-journey",
+    Component: LearningJourneyPage,
   },
   {
     path: "/video-lesson",
@@ -80,5 +96,17 @@ export const router = createBrowserRouter([
   {
     path: "/vocabulary-animals",
     Component: VocabularyAnimals,
+  },
+  {
+    path: "/adventure/body-parts",
+    Component: BodyPartsAdventurePage,
+  },
+  {
+    path: "/review/body-parts",
+    Component: BodyPartsReviewPage,
+  },
+  {
+    path: "/admin",
+    Component: AdminDashboard,
   },
 ]);

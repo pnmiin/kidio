@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { motion, AnimatePresence } from 'motion/react';
-import { RotateCcw, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { motion } from 'motion/react';
+import { RotateCcw, ChevronLeft, ChevronRight, Star, Volume2 } from 'lucide-react';
 import { KidioPageHeader } from '../../components/KidioPageHeader';
-import Confetti from 'react-confetti';
+import { advanceJourney } from '../utils/journeyProgress';
 
 // Letter path data with multiple strokes for each letter (A-Z)
 interface Stroke {
@@ -893,8 +893,6 @@ export function TraceLetterGame() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [tracedPoints, setTracedPoints] = useState<{ x: number; y: number }[]>([]);
   const [progress, setProgress] = useState(0);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
   const [completedLetters, setCompletedLetters] = useState<string[]>([]);
   const [completedStrokes, setCompletedStrokes] = useState<number[]>([]);
   const [showStrokeAnimation, setShowStrokeAnimation] = useState(true);
@@ -904,6 +902,40 @@ export function TraceLetterGame() {
   const letterData = letterPaths[currentLetter];
   const currentStroke = letterData.strokes[currentStrokeIndex];
   const totalStrokes = letterData.strokes.length;
+
+  const speakCurrentLetter = useCallback(() => {
+    try {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(currentLetter);
+        const englishVoices = window.speechSynthesis
+          .getVoices()
+          .filter((voice) => voice.lang.toLowerCase().startsWith('en-us'));
+        const preferredVoiceNames = [
+          'aria',
+          'jenny',
+          'google us english',
+          'samantha',
+          'ava',
+          'zira',
+        ];
+        const preferredVoice = preferredVoiceNames
+          .map((name) =>
+            englishVoices.find((voice) => voice.name.toLowerCase().includes(name)),
+          )
+          .find(Boolean);
+
+        utterance.lang = 'en-US';
+        utterance.voice = preferredVoice ?? englishVoices[0] ?? null;
+        utterance.rate = 0.72;
+        utterance.pitch = 1.05;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch {
+      // Speech is optional; tracing remains usable when it is unavailable.
+    }
+  }, [currentLetter]);
 
   // Draw the letter guide on canvas
   const drawLetterGuide = useCallback(() => {
@@ -1092,13 +1124,8 @@ export function TraceLetterGame() {
       // Check if all strokes are completed
       if (newCompletedStrokes.length === totalStrokes) {
         // All strokes done - letter completed!
-        setIsCompleted(true);
         setCompletedLetters((prev) => [...new Set([...prev, currentLetter])]);
-        // Delay showing celebration so kids can see their completed drawing first
-        setTimeout(() => {
-          setShowCelebration(true);
-          setTimeout(() => setShowCelebration(false), 5000);
-        }, 800);
+        speakCurrentLetter();
       } else {
         // Move to next stroke after a short delay
         setTimeout(() => {
@@ -1117,6 +1144,7 @@ export function TraceLetterGame() {
     currentStrokeIndex,
     totalStrokes,
     currentLetter,
+    speakCurrentLetter,
   ]);
 
   const getCanvasCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
@@ -1168,7 +1196,6 @@ export function TraceLetterGame() {
   const resetLetter = () => {
     setTracedPoints([]);
     setProgress(0);
-    setIsCompleted(false);
     setCurrentStrokeIndex(0);
     setCompletedStrokes([]);
     setShowStrokeAnimation(true);
@@ -1176,10 +1203,14 @@ export function TraceLetterGame() {
   };
 
   const goToNextLetter = () => {
-    if (currentLetterIndex < letters.length - 1) {
-      setCurrentLetterIndex((prev) => prev + 1);
-      resetLetter();
+    if (currentLetterIndex === letters.length - 1) {
+      advanceJourney('starter', 5);
+      navigate('/kid-dashboard');
+      return;
     }
+
+    setCurrentLetterIndex((prev) => prev + 1);
+    resetLetter();
   };
 
   const goToPrevLetter = () => {
@@ -1189,24 +1220,12 @@ export function TraceLetterGame() {
     }
   };
 
-  const allLettersCompleted = completedLetters.length === letters.length;
-
   return (
     <div className="min-h-screen app-sky-background px-4 py-6">
-      {showCelebration && (
-        <Confetti
-          width={window.innerWidth}
-          height={window.innerHeight}
-          recycle={false}
-          numberOfPieces={200}
-          colors={['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']}
-        />
-      )}
-
       <div className="max-w-2xl mx-auto">
         <KidioPageHeader
           backLabel="Back"
-          backTo="/learning-map"
+          backTo="/kid-dashboard"
           title={
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -1219,8 +1238,8 @@ export function TraceLetterGame() {
         />
 
         {/* Letter Progress - scrollable */}
-        <div className="flex justify-center mb-6 overflow-x-auto pb-2">
-          <div className="flex gap-2">
+        <div className="mb-6 w-full overflow-x-auto pb-2">
+          <div className="flex w-max min-w-full justify-start gap-2">
             {letters.map((letter, index) => (
               <motion.button
                 key={letter}
@@ -1256,8 +1275,17 @@ export function TraceLetterGame() {
           className="bg-white rounded-3xl shadow-lg p-6 mb-6"
         >
           {/* Current Letter Display */}
-          <div className="text-center mb-4">
+          <div className="flex flex-col items-center gap-3 text-center mb-4">
             <span className="text-8xl font-bold text-gray-200">{currentLetter}</span>
+            <button
+              type="button"
+              onClick={speakCurrentLetter}
+              aria-label={`Listen to letter ${currentLetter}`}
+              className="flex items-center gap-2 rounded-full bg-[#E3F8FF] px-5 py-2.5 font-bold text-[#167EAF] shadow-sm transition-all hover:scale-105 hover:bg-[#D2F2FF] active:scale-95"
+            >
+              <Volume2 className="h-5 w-5" />
+              Listen
+            </button>
           </div>
 
           {/* Stroke Progress Indicator */}
@@ -1347,77 +1375,13 @@ export function TraceLetterGame() {
 
           <button
             onClick={goToNextLetter}
-            disabled={currentLetterIndex === letters.length - 1}
-            className="flex items-center gap-2 px-4 py-3 bg-white rounded-full shadow-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 px-5 py-3 bg-[#2BADEE] text-white rounded-full shadow-md hover:bg-[#1a9ad4] transition-colors"
           >
-            <span className="hidden sm:inline">Next</span>
+            <span>{currentLetterIndex === letters.length - 1 ? 'Done' : 'Next'}</span>
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Completion Celebration - shows with confetti after delay */}
-        <AnimatePresence>
-          {showCelebration && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.5 }}
-              className="fixed inset-0 flex items-center justify-center bg-black/30 z-50"
-              onClick={() => { setShowCelebration(false); setIsCompleted(false); }}
-            >
-              <motion.div
-                initial={{ y: 50 }}
-                animate={{ y: 0 }}
-                className="bg-white rounded-3xl p-8 text-center shadow-2xl mx-4"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <motion.div
-                  animate={{ rotate: [0, 10, -10, 10, 0] }}
-                  transition={{ duration: 0.5, repeat: 2 }}
-                  className="text-6xl mb-4"
-                >
-                  {allLettersCompleted ? '🏆' : '⭐'}
-                </motion.div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  {allLettersCompleted ? 'Amazing Job!' : 'Great Work!'}
-                </h2>
-                <p className="text-gray-600 mb-6">
-                  {allLettersCompleted
-                    ? 'You traced all the letters!'
-                    : `You traced the letter ${currentLetter}!`}
-                </p>
-                <div className="flex gap-3 justify-center">
-                  {!allLettersCompleted && currentLetterIndex < letters.length - 1 && (
-                    <button
-                      onClick={() => {
-                        setShowCelebration(false);
-                        setIsCompleted(false);
-                        goToNextLetter();
-                      }}
-                      className="px-6 py-3 bg-[#2BADEE] text-white rounded-full font-semibold hover:bg-[#1a9ad4] transition-colors"
-                    >
-                      Next Letter
-                    </button>
-                  )}
-                  {allLettersCompleted && (
-                    <button
-                      onClick={() => navigate('/reward')}
-                      className="px-6 py-3 bg-green-500 text-white rounded-full font-semibold hover:bg-green-600 transition-colors"
-                    >
-                      Claim Reward!
-                    </button>
-                  )}
-                  <button
-                    onClick={() => { setShowCelebration(false); setIsCompleted(false); }}
-                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-300 transition-colors"
-                  >
-                    Keep Practicing
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );
