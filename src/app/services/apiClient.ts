@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://kidio-be.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export type ApiResponse<T> = {
   success: boolean;
@@ -27,7 +27,9 @@ export async function apiRequest<T>(
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
+  const payload = (await response
+    .json()
+    .catch(() => null)) as ApiResponse<T> | null;
 
   if (!response.ok) {
     throw new Error(payload?.message || `API error: ${response.status}`);
@@ -39,4 +41,3 @@ export async function apiRequest<T>(
 
   return payload;
 }
-
