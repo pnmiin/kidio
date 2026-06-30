@@ -4,15 +4,21 @@ import { motion } from 'motion/react';
 import {
   Award,
   BookOpen,
+  Calendar,
+  Check,
   ChevronRight,
   Clock3,
+  Gamepad2,
+  Languages,
   Link,
+  Loader2,
   LogOut,
   MessageCircle,
   Plus,
   Repeat2,
   Sparkles,
   TrendingUp,
+  User,
 } from 'lucide-react';
 import {
   CartesianGrid,
@@ -25,7 +31,9 @@ import {
 } from 'recharts';
 import { PageBackground } from '../../components/PageBackground';
 import { KidioPageHeader } from '../../components/KidioPageHeader';
-import { ChildSummaryResponse, getChildren } from '../services/childApi';
+import { getParentDashboardOverview, ParentDashboardChildItemResponse } from '../services/dashboardApi';
+import { logoutParent } from '../services/authApi';
+import { createChildProfile } from '../services/childApi';
 
 const weeklyData = [
   { day: 'Mon', minutes: 25 },
@@ -83,22 +91,22 @@ interface ParentData {
 const cardClass =
   'rounded-3xl border border-white/80 bg-white/94 shadow-[0_16px_40px_rgba(45,120,160,0.09)]';
 
-function createDashboardKid(child: ChildSummaryResponse): Kid {
-  const name = child.name || 'KIDIO Kid';
+function createDashboardKid(child: ParentDashboardChildItemResponse): Kid {
+  const name = child.childName || 'KIDIO Kid';
 
   return {
-    kidId: child.id,
+    kidId: child.childId,
     name,
     age: child.age,
     avatar: name.charAt(0).toUpperCase(),
     level: 'Starter A1',
     topic: 'Animals & Nature',
     stats: {
-      learningTime: 225,
-      wordsLearned: 143,
-      completedLessons: 24,
-      badges: child.totalStars || 0,
-      streak: child.currentStreakDays || 0,
+      learningTime: Math.round(child.timeSpentSeconds / 60),
+      wordsLearned: 143, // Mocked for now until we have vocabulary progress
+      completedLessons: child.completedLessons,
+      badges: child.totalStars,
+      streak: child.currentStreakDays,
     },
   };
 }
@@ -110,9 +118,19 @@ export function ParentDashboard() {
   const [parentName, setParentName] = useState('');
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [showChildSwitcher, setShowChildSwitcher] = useState(false);
-  const [kidIdInput, setKidIdInput] = useState('');
-  const [kidIdMessage, setKidIdMessage] = useState('');
-  const [kidIdStatus, setKidIdStatus] = useState<'success' | 'error' | null>(null);
+  const [kidNameInput, setKidNameInput] = useState('');
+  const [kidAgeInput, setKidAgeInput] = useState('');
+  const [kidExperience, setKidExperience] = useState<'No' | 'A little' | 'Yes' | ''>('');
+  const [kidActionMessage, setKidActionMessage] = useState('');
+  const [kidActionStatus, setKidActionStatus] = useState<'success' | 'error' | null>(null);
+  const [isCreatingKid, setIsCreatingKid] = useState(false);
+
+  const ageOptions = ['5', '6', '7', '8', '9', '10'];
+  const experienceOptions = [
+    { value: 'No' as const, description: 'I am brand new', color: 'border-sky-200 bg-sky-50' },
+    { value: 'A little' as const, description: 'I know some words', color: 'border-violet-200 bg-violet-50' },
+    { value: 'Yes' as const, description: 'I can use English', color: 'border-amber-200 bg-amber-50' },
+  ];
 
   useEffect(() => {
     let isMounted = true;
@@ -123,7 +141,7 @@ export function ParentDashboard() {
     const createDefaultParent = (email = 'demo@kidio.com', name = 'Parent') => ({
       name,
       email,
-      kids: [],
+      kids: [] as Kid[],
     });
 
     const loadLocalParent = () => {
@@ -161,20 +179,26 @@ export function ParentDashboard() {
       setParentName(parentUser?.displayName || 'Parent');
 
       try {
-        const response = await getChildren();
+        const response = await getParentDashboardOverview();
         if (!isMounted) return;
-        if (!response.success) {
-          throw new Error(response.message || 'Could not load child profiles.');
+        if (!response.success || !response.data) {
+          throw new Error(response.message || 'Could not load parent dashboard data.');
+        }
+        
+        const dashboardData = response.data;
+        if (dashboardData.parentName) {
+           setParentName(dashboardData.parentName);
         }
 
-        const apiKids = (response.data?.items || []).map(createDashboardKid);
+        const apiKids = (dashboardData.children || []).map(createDashboardKid);
         const linkedKidId = localStorage.getItem('linkedKidId')?.toUpperCase();
         const activeKid =
           apiKids.find((kid) => kid.kidId?.toUpperCase() === linkedKidId) || apiKids[0] || null;
 
-        const parent = createDefaultParent(currentParentStr || 'parent@kidio.com', parentUser?.displayName || 'Parent');
+        const parent = createDefaultParent(currentParentStr || 'parent@kidio.com', dashboardData.parentName || parentUser?.displayName || 'Parent');
         parent.kids = apiKids;
         localStorage.setItem('parentData', JSON.stringify(parent));
+        
         if (activeKid?.kidId) {
           localStorage.setItem('linkedKidId', activeKid.kidId);
         }
@@ -195,52 +219,91 @@ export function ParentDashboard() {
     };
   }, []);
 
-  const handleLinkKidId = () => {
-    const enteredId = kidIdInput.trim();
-    const normalizedEnteredId = enteredId.toUpperCase();
-    const currentKidId = localStorage.getItem('currentKidId');
-    const validKidIds = [currentKidId, ...kids.map((kid) => kid.kidId)].filter(Boolean);
+  const handleCreateChild = async () => {
+    const name = kidNameInput.trim();
+    const age = Number(kidAgeInput);
 
-    if (
-      !enteredId ||
-      !validKidIds.some((kidId) => kidId?.toUpperCase() === normalizedEnteredId)
-    ) {
-      setKidIdStatus('error');
-      setKidIdMessage('Create a kid profile from Kid Mode first, then use that Kid ID here.');
+    if (!name || !age || isNaN(age) || !kidExperience) {
+      setKidActionStatus('error');
+      setKidActionMessage('Please fill in all fields: name, age, and English level.');
       return;
     }
 
-    const kidName = localStorage.getItem('currentKidName') || 'KIDIO Kid';
-    const kidAge = Number(localStorage.getItem('currentKidAge') || '7');
-    const existingKid = kids.find((kid) => kid.kidId?.toUpperCase() === normalizedEnteredId);
-    const linkedKid: Kid =
-      existingKid || {
-        kidId: currentKidId || enteredId,
-        name: kidName,
-        age: kidAge,
-        avatar: kidName.charAt(0).toUpperCase(),
-        level: 'Starter A1',
-        topic: 'Animals & Nature',
-        stats: {
-          learningTime: 225,
-          wordsLearned: 143,
-          completedLessons: 24,
-          badges: 12,
-          streak: 7,
-        },
-      };
-    const updatedKids = existingKid ? kids : [...kids, linkedKid];
-    const parentData = JSON.parse(localStorage.getItem('parentData') || '{}');
+    setIsCreatingKid(true);
+    setKidActionStatus(null);
+    setKidActionMessage('');
 
-    parentData.kids = updatedKids;
-    localStorage.setItem('parentData', JSON.stringify(parentData));
-    localStorage.setItem('linkedKidId', linkedKid.kidId || enteredId);
-    setKids(updatedKids);
-    setSelectedKid(linkedKid);
-    setKidIdStatus('success');
-    setKidIdMessage(`${linkedKid.name}'s learning profile is now linked.`);
-    setKidIdInput('');
-    setShowLinkForm(false);
+    try {
+      const response = await createChildProfile(name, age, '');
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to create child profile.');
+      }
+
+      const kidId = response.data.id;
+      // Save kid info to localStorage (same as KidLogin)
+      localStorage.setItem('currentKidName', response.data.name || name);
+      localStorage.setItem('currentKidAge', String(response.data.age || age));
+      localStorage.setItem('currentKidId', kidId);
+      localStorage.setItem('currentKid', kidId);
+      localStorage.setItem('linkedKidId', kidId);
+      const normalizedExperience = kidExperience === 'No' ? 'no' : kidExperience === 'A little' ? 'little' : 'yes';
+      localStorage.setItem('currentKidExperience', normalizedExperience);
+      ['starter', 'explorer', 'builder', 'story', 'speaking'].forEach((pathKey) => {
+        localStorage.removeItem(`kidioJourneyIndex:${pathKey}`);
+      });
+
+      if (normalizedExperience === 'no') {
+        localStorage.setItem('kidioPath', 'starter');
+        localStorage.setItem('kidioLevel', 'starter');
+        localStorage.setItem('currentKidLevel', 'starter');
+        localStorage.setItem('currentKidPath', 'starter');
+        localStorage.setItem('currentKidPathLabel', 'Starter Adventure');
+        localStorage.setItem('currentKidCurrentTopic', 'Rainbow Valley');
+      } else {
+        localStorage.removeItem('kidioPath');
+        localStorage.removeItem('kidioLevel');
+        localStorage.removeItem('currentKidLevel');
+        localStorage.removeItem('currentKidPath');
+        localStorage.removeItem('currentKidPathLabel');
+        localStorage.removeItem('currentKidCurrentTopic');
+      }
+
+      // Re-fetch dashboard data to update the UI
+      const dashResponse = await getParentDashboardOverview();
+      if (dashResponse.success && dashResponse.data) {
+        const apiKids = (dashResponse.data.children || []).map(createDashboardKid);
+        setKids(apiKids);
+        
+        const newKid = apiKids.find((k: Kid) => k.kidId === response.data?.id) || apiKids[apiKids.length - 1];
+        if (newKid) {
+          setSelectedKid(newKid);
+          localStorage.setItem('linkedKidId', newKid.kidId || '');
+        }
+      }
+
+      setKidActionStatus('success');
+      setKidActionMessage(`${name}'s learning profile is now created!`);
+      setKidNameInput('');
+      setKidAgeInput('');
+      setKidExperience('');
+      setShowLinkForm(false);
+    } catch (error) {
+      setKidActionStatus('error');
+      setKidActionMessage(error instanceof Error ? error.message : 'An error occurred.');
+    } finally {
+      setIsCreatingKid(false);
+    }
+  };
+
+  const goToKidMode = (kid: Kid) => {
+    if (kid.kidId) {
+      localStorage.setItem('currentKidId', kid.kidId);
+      localStorage.setItem('currentKid', kid.kidId);
+      localStorage.setItem('linkedKidId', kid.kidId);
+    }
+    localStorage.setItem('currentKidName', kid.name);
+    localStorage.setItem('currentKidAge', String(kid.age));
+    navigate('/kid-dashboard');
   };
 
   const selectKid = (kid: Kid) => {
@@ -252,8 +315,8 @@ export function ParentDashboard() {
   const openLinkForm = () => {
     setShowLinkForm(true);
     setShowChildSwitcher(false);
-    setKidIdStatus(null);
-    setKidIdMessage('');
+    setKidActionStatus(null);
+    setKidActionMessage('');
   };
 
   const scrollToReport = () => {
@@ -374,53 +437,136 @@ export function ParentDashboard() {
             </>
           ) : (
             <div className="mx-auto max-w-2xl">
-              <div className="mb-5 flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-600">
-                  <Link className="h-6 w-6" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-950">
-                    {selectedKid ? 'Link another child' : 'Connect your child'}
-                  </h2>
-                  <p className="mt-1 text-sm leading-6 text-gray-500">
-                    Enter the Kid ID created from Kid Mode to connect the learning profile to this parent account.
-                  </p>
-                </div>
+              <div className="text-center mb-2">
+                <motion.img
+                  animate={{ y: [0, -5, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  src="/assets/kid-login-cow-mascot.png"
+                  alt="Kiki mascot"
+                  className="mx-auto h-20 w-20 object-contain drop-shadow-[0_12px_18px_rgba(43,128,190,0.2)]"
+                  draggable={false}
+                />
+                <h2 className="mt-2 text-2xl font-black text-[#102d54]">
+                  {selectedKid ? 'Add another child' : 'Hi there! Let\'s set up your child\'s profile'}
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-gray-500">
+                  This helps us create the perfect learning adventure.
+                </p>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
+
+              {/* Name input */}
+              <div className="mt-5">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                    <User className="h-4 w-4" />
+                  </span>
+                  <span className="text-base font-black text-[#102d54]">What's your child's name?</span>
+                </div>
                 <input
                   type="text"
-                  value={kidIdInput}
-                  onChange={(event) => {
-                    setKidIdInput(event.target.value.toUpperCase());
-                    setKidIdStatus(null);
-                    setKidIdMessage('');
-                  }}
-                  placeholder="KID-XXXXXX"
-                  className="min-w-0 flex-1 rounded-2xl border border-violet-200 bg-violet-50/40 px-4 py-3 font-bold uppercase tracking-wider text-gray-800 outline-none focus:border-violet-400"
+                  value={kidNameInput}
+                  onChange={(e) => { setKidNameInput(e.target.value); setKidActionStatus(null); setKidActionMessage(''); }}
+                  className="h-12 w-full rounded-2xl border-2 border-sky-200 bg-white px-4 text-base font-semibold text-[#102d54] outline-none transition placeholder:text-gray-400 focus:border-sky-500 focus:shadow-[0_0_0_5px_rgba(47,173,238,0.14)]"
+                  placeholder="Enter their name"
                 />
-                <button
+              </div>
+
+              {/* Age selection */}
+              <div className="mt-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600">
+                    <Calendar className="h-4 w-4" />
+                  </span>
+                  <span className="text-base font-black text-[#102d54]">How old are they?</span>
+                </div>
+                <div className="grid grid-cols-6 gap-2">
+                  {ageOptions.map((age) => {
+                    const selected = kidAgeInput === age;
+                    return (
+                      <motion.button key={age} type="button" whileTap={{ scale: 0.96 }}
+                        onClick={() => { setKidAgeInput(age); setKidActionStatus(null); setKidActionMessage(''); }}
+                        className={`h-12 rounded-2xl border-2 text-xl font-black transition ${
+                          selected
+                            ? 'scale-[1.05] border-violet-500 bg-gradient-to-br from-sky-100 to-violet-200 text-violet-900 shadow-[0_12px_24px_rgba(124,58,237,0.22)]'
+                            : 'border-sky-100 bg-sky-50/70 text-[#234668] hover:border-sky-300 hover:bg-sky-100'
+                        }`}
+                      >
+                        {age}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Experience selection */}
+              <div className="mt-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                    <Languages className="h-4 w-4" />
+                  </span>
+                  <span className="text-base font-black text-[#102d54]">Have they learned English before?</span>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {experienceOptions.map((option) => {
+                    const selected = kidExperience === option.value;
+                    return (
+                      <motion.button key={option.value} type="button" whileTap={{ scale: 0.98 }}
+                        onClick={() => { setKidExperience(option.value); setKidActionStatus(null); setKidActionMessage(''); }}
+                        className={`flex min-h-[70px] items-center gap-3 rounded-[18px] border-2 p-3 text-left transition ${
+                          selected
+                            ? 'scale-[1.02] border-violet-500 bg-gradient-to-br from-sky-100 to-violet-100 shadow-[0_14px_28px_rgba(124,58,237,0.18)]'
+                            : `${option.color} hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md`
+                        }`}
+                      >
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                          selected ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-300 bg-white text-transparent'
+                        }`}>
+                          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                        </span>
+                        <span>
+                          <span className="block text-base font-black text-[#102d54]">{option.value}</span>
+                          <span className="block text-xs font-semibold text-gray-500">{option.description}</span>
+                        </span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {kidActionMessage && (
+                <div className={`mt-4 rounded-2xl border px-4 py-3 text-center text-sm font-bold ${
+                  kidActionStatus === 'success' ? 'border-emerald-100 bg-emerald-50 text-emerald-600' : 'border-rose-100 bg-rose-50 text-rose-600'
+                }`}>
+                  {kidActionMessage}
+                </div>
+              )}
+
+              <div className="mt-5 flex gap-3">
+                <motion.button
+                  whileHover={kidNameInput && kidAgeInput && kidExperience ? { y: -2, scale: 1.01 } : undefined}
+                  whileTap={kidNameInput && kidAgeInput && kidExperience ? { scale: 0.98 } : undefined}
                   type="button"
-                  onClick={handleLinkKidId}
-                  className="rounded-2xl bg-violet-500 px-6 py-3 font-bold text-white transition hover:bg-violet-600"
+                  onClick={handleCreateChild}
+                  disabled={isCreatingKid || !kidNameInput.trim() || !kidAgeInput || !kidExperience}
+                  className="h-14 flex-1 rounded-full bg-gradient-to-r from-[#29b8ff] to-[#0877f2] px-5 text-lg font-black text-white shadow-[0_18px_34px_rgba(8,119,242,0.28)] transition enabled:hover:shadow-[0_22px_40px_rgba(8,119,242,0.36)] disabled:cursor-not-allowed disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
                 >
-                  Link child
-                </button>
+                  {isCreatingKid ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Creating...
+                    </span>
+                  ) : (
+                    'Create Profile & Start'
+                  )}
+                </motion.button>
                 {selectedKid && (
-                  <button
-                    type="button"
-                    onClick={() => setShowLinkForm(false)}
-                    className="rounded-2xl px-5 py-3 font-bold text-gray-500 transition hover:bg-gray-50"
+                  <button type="button" onClick={() => setShowLinkForm(false)}
+                    className="rounded-full px-5 py-3 font-bold text-gray-500 transition hover:bg-gray-50"
                   >
                     Cancel
                   </button>
                 )}
               </div>
-              {kidIdMessage && (
-                <p className={`mt-3 text-sm font-bold ${kidIdStatus === 'success' ? 'text-emerald-600' : 'text-rose-500'}`}>
-                  {kidIdMessage}
-                </p>
-              )}
             </div>
           )}
         </motion.section>
@@ -450,11 +596,11 @@ export function ParentDashboard() {
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <button
-                    onClick={() => navigate('/kid-dashboard')}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#2BADEE] px-5 py-3 font-bold text-white shadow-[0_8px_20px_rgba(43,173,238,0.2)] transition hover:bg-[#1E90D0]"
+                    onClick={() => goToKidMode(selectedKid)}
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#29b8ff] to-[#0877f2] px-6 py-3 font-bold text-white shadow-[0_12px_24px_rgba(8,119,242,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(8,119,242,0.34)]"
                   >
-                    <MessageCircle className="h-5 w-5" />
-                    Practice together
+                    <Gamepad2 className="h-5 w-5" />
+                    Go to Kid Mode
                   </button>
                   <button
                     onClick={scrollToReport}

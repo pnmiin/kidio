@@ -108,7 +108,14 @@ export function ColorMixGame() {
       window.setTimeout(() => {
         setBucketShaking(false);
         setPhase("result");
-        setCompletedMixes((value) => Math.min(value + 1, colorCombinations.length));
+        setCompletedMixes((value) => {
+          const nextValue = Math.min(value + 1, colorCombinations.length);
+          if (nextValue === colorCombinations.length && value !== colorCombinations.length) {
+            const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
+            localStorage.setItem("currentKidStars", (currentStars + 3).toString());
+          }
+          return nextValue;
+        });
       }, 900);
     }
   };

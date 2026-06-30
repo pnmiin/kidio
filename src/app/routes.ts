@@ -1,12 +1,10 @@
 import { createBrowserRouter } from "react-router";
 import { LandingPage } from "./pages/LandingPage";
-import { SelectAccountType } from "./pages/SelectAccountType";
 import { ParentLogin } from "./pages/ParentLogin";
 import { KidLogin } from "./pages/KidLogin";
 import { KidDashboard } from "./pages/KidDashboard";
 import { LearningJourneyPage } from "./pages/LearningJourneyPage";
 import { VideoLesson } from "./pages/VideoLesson";
-import { MiniGame } from "./pages/MiniGame";
 import { RewardPage } from "./pages/RewardPage";
 import { ParentDashboard } from "./pages/ParentDashboard";
 import { Checkout } from "./pages/Checkout";
@@ -28,6 +26,7 @@ import { BigNumberCityGame } from "./pages/BigNumberCityGame";
 import { ReviewParkGame } from "./pages/ReviewParkGame";
 import { AnimalIslandPage } from "./pages/AnimalIslandPage";
 import { AnimalGroupPage } from "./pages/AnimalGroupPage";
+import { MyHomeGame } from "./pages/MyHomeGame";
 import { AdminDashboard } from "../pages/admin/AdminDashboard";
 
 export const router = createBrowserRouter([
@@ -37,7 +36,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/select-account",
-    Component: SelectAccountType,
+    Component: ParentLogin, // Redirect old route to parent login
   },
   {
     path: "/parent-login",
@@ -70,10 +69,6 @@ export const router = createBrowserRouter([
   {
     path: "/video-lesson",
     Component: VideoLesson,
-  },
-  {
-    path: "/mini-game",
-    Component: MiniGame,
   },
   {
     path: "/reward",
@@ -122,6 +117,10 @@ export const router = createBrowserRouter([
   {
     path: "/animal-island/:groupId",
     Component: AnimalGroupPage,
+  },
+  {
+    path: "/my-home-game",
+    Component: MyHomeGame,
   },
   {
     path: "/adventure/body-parts",

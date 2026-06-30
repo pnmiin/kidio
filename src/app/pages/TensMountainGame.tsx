@@ -162,9 +162,15 @@ export function TensMountainGame() {
     setScreen("game");
   };
 
-  const finishGame = () => {
+  const finishGame = async () => {
     stopSpeech();
+    setIsSpeaking(false);
     saveTensMountainResult(score);
+
+    const earnedStars = getTensMountainStars(score);
+    const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
+    localStorage.setItem("currentKidStars", (currentStars + earnedStars).toString());
+
     setScreen("complete");
   };
 

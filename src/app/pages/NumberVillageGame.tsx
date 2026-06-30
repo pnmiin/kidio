@@ -14,15 +14,16 @@ import {
 import { KidioPageHeader } from "../../components/KidioPageHeader";
 import { NumberLearningBoard } from "../components/number-land/NumberLearningBoard";
 import {
+  NumberVillageQuestion,
   numberVillageQuestions,
   numberWords,
-  type NumberVillageQuestion,
 } from "../data/numberVillageData";
 import {
   getNumberVillageStars,
   saveNumberVillageResult,
 } from "../utils/numberLandProgress";
 import { speak, stopSpeech } from "../utils/speech";
+import { submitProgress } from "../services/progressApi";
 
 type Feedback = {
   type: "correct" | "wrong";
@@ -164,6 +165,7 @@ export function NumberVillageGame() {
   const [lastWrongAnswer, setLastWrongAnswer] = useState<number | null>(null);
   const [hasListened, setHasListened] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [startTime] = useState(Date.now());
 
   const question = numberVillageQuestions[questionIndex];
   const stars = useMemo(() => getNumberVillageStars(score), [score]);
@@ -212,10 +214,30 @@ export function NumberVillageGame() {
     speak("Good try. Listen again and try once more.");
   };
 
-  const finishGame = () => {
+  const finishGame = async () => {
     stopSpeech();
     setIsSpeaking(false);
     saveNumberVillageResult(score);
+    
+    const earnedStars = getNumberVillageStars(score);
+    const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
+    localStorage.setItem("currentKidStars", (currentStars + earnedStars).toString());
+
+    const childId = localStorage.getItem("currentKidId");
+    const lessonId = localStorage.getItem("currentLessonId");
+    if (childId && lessonId) {
+      try {
+        await submitProgress({
+          childId,
+          lessonId,
+          scorePercent: Math.round((score / numberVillageQuestions.length) * 100),
+          timeSpentSeconds: Math.floor((Date.now() - startTime) / 1000)
+        });
+      } catch (err) {
+        console.error("Failed to submit progress:", err);
+      }
+    }
+
     setFlowStep("result");
   };
 

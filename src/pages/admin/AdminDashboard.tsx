@@ -21,6 +21,7 @@ import {
 } from "@/data/adminMockData";
 import type { AdminKpi } from "@/types/admin";
 import { isAdminSession } from "@/app/utils/adminAuth";
+import { getAdminDashboardOverview, getAdminDashboardDetail, AdminDashboardOverviewResponse, AdminDashboardDetailResponse } from "@/app/services/dashboardApi";
 
 const COLORS = ["#38BDF8", "#A78BFA", "#34D399", "#FBBF24", "#FB7185", "#818CF8"];
 const money = new Intl.NumberFormat("vi-VN");
@@ -74,6 +75,8 @@ export function AdminDashboard() {
   const navigate = useNavigate();
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
+  const [dashboardData, setDashboardData] = useState<AdminDashboardOverviewResponse | null>(null);
+  const [detailData, setDetailData] = useState<AdminDashboardDetailResponse | null>(null);
 
   useEffect(() => {
     if (!isAdminSession()) {
@@ -82,6 +85,24 @@ export function AdminDashboard() {
     }
 
     setHasAdminAccess(true);
+    
+    // Fetch real data from backend
+    getAdminDashboardOverview()
+      .then((res) => {
+        if (res.success && res.data) {
+          setDashboardData(res.data);
+        }
+      })
+      .catch((err) => console.error("Error loading admin dashboard overview", err));
+
+    getAdminDashboardDetail()
+      .then((res) => {
+        if (res.success && res.data) {
+          setDetailData(res.data);
+        }
+      })
+      .catch((err) => console.error("Error loading admin dashboard detail", err));
+
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
@@ -100,6 +121,24 @@ export function AdminDashboard() {
 
   if (!hasAdminAccess) return null;
 
+  const currentKpis: AdminKpi[] = dashboardData ? [
+    { title: "Total Parents", value: dashboardData.totalParents.toString(), change: "Active users", status: "neutral", icon: "parent" },
+    { title: "Total Children", value: dashboardData.totalChildren.toString(), change: "Learners", status: "up", icon: "child" },
+    { title: "Lessons Completed", value: dashboardData.totalLessonCompletions.toString(), change: "Total completions", status: "up", icon: "book" },
+    { title: "Achievements", value: dashboardData.totalAchievementsEarned.toString(), change: "Badges earned", status: "up", icon: "sparkles" },
+    { title: "Total Lessons", value: dashboardData.totalLessons.toString(), change: `${dashboardData.totalPublishedLessons} published`, status: "neutral", icon: "target" },
+    { title: "Vocabularies", value: dashboardData.totalVocabularies.toString(), change: "In database", status: "neutral", icon: "words" }
+  ] : overviewKpis;
+
+  const currentContentLessons = detailData?.topLessons?.length 
+    ? detailData.topLessons.map(tl => ({
+        lesson: tl.title,
+        topic: tl.topicName,
+        learners: tl.completionCount,
+        completionRate: Math.round(tl.avgScorePercent)
+      }))
+    : contentLessons;
+
   return (
     <div className="min-h-screen bg-[#F7F9FC] text-slate-900">
       <AdminSidebar activeSection={activeSection} />
@@ -108,7 +147,7 @@ export function AdminDashboard() {
         <main className="space-y-12 p-4 sm:p-6 lg:p-8">
           <Section id="overview" title="Overview" subtitle="Executive view of KIDIO platform performance.">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {overviewKpis.map((kpi: AdminKpi) => {
+              {currentKpis.map((kpi: AdminKpi) => {
                 const Icon = iconMap[kpi.icon] ?? Activity;
                 return <AdminKpiCard key={kpi.title} kpi={kpi} icon={<Icon className="h-5 w-5" />} />;
               })}
@@ -369,7 +408,7 @@ export function AdminDashboard() {
             <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
               <AdminChartCard title="Top 10 Lessons">
                 <AdminDataTable
-                  rows={contentLessons}
+                  rows={currentContentLessons}
                   getKey={(row) => row.lesson}
                   columns={[
                     { header: "Lesson", render: (row) => <span className="font-semibold text-slate-800">{row.lesson}</span> },
@@ -381,7 +420,7 @@ export function AdminDashboard() {
               </AdminChartCard>
               <AdminChartCard title="Most Popular Lessons">
                 <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={contentLessons.slice(0, 6)} layout="vertical">
+                  <BarChart data={currentContentLessons.slice(0, 6)} layout="vertical">
                     <XAxis type="number" axisLine={false} tickLine={false} />
                     <YAxis dataKey="topic" type="category" width={75} axisLine={false} tickLine={false} />
                     <Tooltip />
@@ -392,7 +431,7 @@ export function AdminDashboard() {
             </div>
             <AdminChartCard title="Low Completion Lessons" subtitle="Content requiring review" className="mt-4">
               <div className="grid gap-3 sm:grid-cols-3">
-                {contentLessons.slice(-3).map((lesson) => (
+                {currentContentLessons.slice(-3).map((lesson) => (
                   <div key={lesson.lesson} className="rounded-xl border border-rose-100 bg-rose-50/50 p-4">
                     <p className="font-semibold text-slate-800">{lesson.lesson}</p>
                     <p className="mt-2 text-2xl font-bold text-rose-600">{lesson.completionRate}%</p>

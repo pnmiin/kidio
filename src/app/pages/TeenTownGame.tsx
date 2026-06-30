@@ -89,9 +89,14 @@ export function TeenTownGame() {
     setStep("game");
   };
 
-  const finishGame = (finalScore: number) => {
+  const finishGame = async () => {
     stopSpeech();
-    saveTeenTownResult(finalScore);
+    saveTeenTownResult(score);
+
+    const earnedStars = getTeenTownStars(score);
+    const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
+    localStorage.setItem("currentKidStars", (currentStars + earnedStars).toString());
+
     setStep("complete");
   };
 
@@ -115,7 +120,7 @@ export function TeenTownGame() {
   const goToNextQuestion = () => {
     stopSpeech();
     if (questionIndex === questions.length - 1) {
-      finishGame(score);
+      finishGame();
       return;
     }
 

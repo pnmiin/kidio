@@ -98,10 +98,10 @@ export function VideoLesson() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/mini-game')}
+            onClick={() => navigate('/learning-journey')}
             className="flex items-center gap-3 px-8 py-4 bg-green-500 text-white rounded-full shadow-lg text-lg font-bold hover:shadow-xl transition-all"
           >
-            Next Activity
+            Back to Map
             <ArrowRight className="w-6 h-6" />
           </motion.button>
         </div>

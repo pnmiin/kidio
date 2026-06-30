@@ -166,6 +166,8 @@ export function ColorHuntGame() {
   const nextRound = () => {
     if (roundIndex === rounds.length - 1) {
       setGameComplete(true);
+      const currentKidStars = parseInt(localStorage.getItem("currentKidStars") || "0");
+      localStorage.setItem("currentKidStars", (currentKidStars + stars).toString());
       return;
     }
 

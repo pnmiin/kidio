@@ -17,6 +17,9 @@ import { PageBackground } from "../../components/PageBackground";
 import { KidioPageHeader } from "../../components/KidioPageHeader";
 import { getJourneyProgress } from "../utils/journeyProgress";
 import { ensureCurrentKidId } from "../utils/kidId";
+import { getTopicsPaged } from "../services/topicApi";
+import { getChildProgressSummary } from "../services/progressApi";
+import { Loader2 } from "lucide-react";
 
 type PathKey = "starter" | "explorer" | "builder" | "story" | "speaking";
 type JourneyStatus = "current" | "next" | "locked" | "completed";
@@ -175,69 +178,137 @@ export function KidDashboard() {
   const [kidName, setKidName] = useState("");
   const [kidId, setKidId] = useState("");
   const [stars, setStars] = useState("0");
+  const [isLoading, setIsLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<LearningPathData>(
     learningPathConfig.starter,
   );
 
   useEffect(() => {
-    const storedName = localStorage.getItem("currentKidName");
-    if (!storedName) {
-      navigate("/kid-login", { replace: true });
-      return;
-    }
+    const initDashboard = async () => {
+      const storedName = localStorage.getItem("currentKidName");
+      if (!storedName) {
+        navigate("/kid-login", { replace: true });
+        return;
+      }
 
-    const storedExperience = localStorage.getItem("currentKidExperience");
-    const storedLevel = localStorage.getItem("currentKidLevel");
-    const pathKey =
-      storedExperience === "no" || storedLevel === "starter"
-        ? "starter"
-        : normalizePathKey(
-            localStorage.getItem("kidioPath") ||
-              storedLevel ||
-              localStorage.getItem("currentKidPath"),
-          );
-    const data = learningPathConfig[pathKey];
-    const journeyIndex = getJourneyProgress(pathKey, data.journey.length);
-    const journey = data.journey.map((world, index) => ({
-      ...world,
-      status:
-        index < journeyIndex
-          ? ("completed" as const)
-          : index === journeyIndex
-            ? ("current" as const)
-            : index === journeyIndex + 1
-              ? ("next" as const)
-              : ("locked" as const),
-    }));
-    const currentWorld = journey[journeyIndex];
-    const dashboardData = {
-      ...data,
-      todayAdventure: currentWorld.label,
-      mission:
-        journeyIndex === 0 ? data.mission : `Explore ${currentWorld.label}`,
-      lessonId:
-        journeyIndex === 0
-          ? data.lessonId
-          : currentWorld.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      lessonRoute:
-        journeyIndex === 0
-          ? data.lessonRoute
-          : currentWorld.route || "/video-lesson",
-      journey,
+      setKidName(storedName);
+      const currentKidId = ensureCurrentKidId();
+      setKidId(currentKidId);
+      
+      try {
+        const summaryRes = await getChildProgressSummary(currentKidId);
+        if (summaryRes.success && summaryRes.data) {
+          const fetchedStars = summaryRes.data.totalStars;
+          const localStars = parseInt(localStorage.getItem("currentKidStars") || "0");
+          const highestStars = Math.max(fetchedStars, localStars).toString();
+          setStars(highestStars);
+          localStorage.setItem("currentKidStars", highestStars);
+        } else {
+          setStars(localStorage.getItem("currentKidStars") || "0");
+        }
+      } catch (e) {
+        setStars(localStorage.getItem("currentKidStars") || "0");
+      }
+
+      const storedExperience = localStorage.getItem("currentKidExperience");
+      const storedLevel = localStorage.getItem("currentKidLevel");
+      const pathKey =
+        storedExperience === "no" || storedLevel === "starter"
+          ? "starter"
+          : normalizePathKey(
+              localStorage.getItem("kidioPath") ||
+                storedLevel ||
+                localStorage.getItem("currentKidPath"),
+            );
+      
+      const fallbackData = learningPathConfig[pathKey];
+      
+      try {
+        // Fetch real topics from Backend API
+        const topicsResponse = await getTopicsPaged(1, 10);
+        if (topicsResponse.success && topicsResponse.data?.items.length) {
+          const apiTopics = topicsResponse.data.items;
+          const journeyIndex = getJourneyProgress(pathKey, apiTopics.length);
+          
+          const journey = apiTopics.map((topic, index) => ({
+            label: topic.name,
+            icon: "STAR", // Default icon
+            status:
+              index < journeyIndex
+                ? ("completed" as const)
+                : index === journeyIndex
+                  ? ("current" as const)
+                  : index === journeyIndex + 1
+                    ? ("next" as const)
+                    : ("locked" as const),
+            route: `/learning-journey?topicId=${topic.id}`
+          }));
+
+          const currentWorld = journey[journeyIndex] || journey[journey.length - 1];
+          const newDashboardData = {
+            ...fallbackData,
+            todayAdventure: currentWorld.label,
+            mission: `Explore ${currentWorld.label}`,
+            lessonId: currentWorld.route ? new URLSearchParams(currentWorld.route.split('?')[1]).get('topicId') || fallbackData.lessonId : fallbackData.lessonId,
+            lessonRoute: currentWorld.route || "/video-lesson",
+            journey,
+          };
+
+          setDashboardData(newDashboardData);
+          localStorage.setItem("kidioPath", pathKey);
+          localStorage.setItem("kidioLevel", pathKey);
+          localStorage.setItem("currentKidLevel", pathKey);
+          localStorage.setItem("currentKidCurrentTopic", currentWorld.label);
+        } else {
+          // Fallback to hardcoded if no topics
+          setupFallback(fallbackData, pathKey);
+        }
+      } catch (error) {
+        console.error("Failed to load topics:", error);
+        setupFallback(fallbackData, pathKey);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    localStorage.setItem("kidioPath", pathKey);
-    localStorage.setItem("kidioLevel", pathKey);
-    localStorage.setItem("currentKidLevel", pathKey);
-    localStorage.setItem("currentKidCurrentTopic", currentWorld.label);
+    const setupFallback = (data: LearningPathData, pathKey: PathKey) => {
+      const journeyIndex = getJourneyProgress(pathKey, data.journey.length);
+      const journey = data.journey.map((world, index) => ({
+        ...world,
+        status:
+          index < journeyIndex
+            ? ("completed" as const)
+            : index === journeyIndex
+              ? ("current" as const)
+              : index === journeyIndex + 1
+                ? ("next" as const)
+                : ("locked" as const),
+      }));
+      const currentWorld = journey[journeyIndex];
+      const newDashboardData = {
+        ...data,
+        todayAdventure: currentWorld.label,
+        mission:
+          journeyIndex === 0 ? data.mission : `Explore ${currentWorld.label}`,
+        lessonId:
+          journeyIndex === 0
+            ? data.lessonId
+            : currentWorld.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        lessonRoute:
+          journeyIndex === 0
+            ? data.lessonRoute
+            : currentWorld.route || "/video-lesson",
+        journey,
+      };
+      
+      setDashboardData(newDashboardData);
+      localStorage.setItem("kidioPath", pathKey);
+      localStorage.setItem("kidioLevel", pathKey);
+      localStorage.setItem("currentKidLevel", pathKey);
+      localStorage.setItem("currentKidCurrentTopic", currentWorld.label);
+    };
 
-    console.log("Assigned KIDIO path:", pathKey);
-    console.log("Dashboard data:", dashboardData);
-
-    setKidName(storedName);
-    setKidId(ensureCurrentKidId());
-    setStars(localStorage.getItem("currentKidStars") || "0");
-    setDashboardData(dashboardData);
+    initDashboard();
   }, [navigate]);
 
   const startAdventure = () => {
@@ -252,6 +323,11 @@ export function KidDashboard() {
       <span className="kidio-cloud-puff bottom-16 left-[6%] h-8 w-20" />
       <KidioPageHeader backLabel="Exit" backTo="/" />
 
+      {isLoading ? (
+        <div className="flex h-[60vh] w-full items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-sky-500" />
+        </div>
+      ) : (
       <main className="relative z-10 mx-auto w-full max-w-[900px] px-1 pb-8 sm:px-3">
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -492,6 +568,23 @@ export function KidDashboard() {
           </div>
         </section>
       </main>
+      )}
+
+      {/* Background decoration */}
+      <span className="kidio-cloud-puff right-[10%] top-48 h-6 w-16 opacity-70" />
+      <span className="kidio-cloud-puff bottom-32 right-[5%] h-10 w-24 opacity-60" />
+      <div className="pointer-events-none absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+        <svg
+          viewBox="0 0 1200 120"
+          preserveAspectRatio="none"
+          className="h-[60px] w-full sm:h-[100px]"
+        >
+          <path
+            d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
+            className="fill-white"
+          />
+        </svg>
+      </div>
     </PageBackground>
   );
 }

@@ -29,7 +29,7 @@ export async function loginParent(email: string, password: string) {
   });
 }
 
-export async function registerParent(displayName: string, email: string, password: string) {
+export async function registerParent(displayName: string, email: string, password: string, confirmPassword: string) {
   return apiRequest<RegisterResponse>("/api/Auth/register", {
     method: "POST",
     auth: false,
@@ -37,7 +37,7 @@ export async function registerParent(displayName: string, email: string, passwor
       displayName,
       email,
       password,
-      confirmPassword: password,
+      confirmPassword,
     },
   });
 }
@@ -57,4 +57,24 @@ export function saveAuthSession(auth: AuthResponse) {
     localStorage.setItem("currentParent", auth.user.email || "");
     localStorage.setItem("currentUserRole", auth.user.role || "parent");
   }
+}
+
+export async function getCurrentUser() {
+  return apiRequest<UserInfoDto>("/api/Auth/me", {
+    method: "GET",
+  });
+}
+
+export async function logoutParent() {
+  const result = await apiRequest<{}>("/api/Auth/logout", {
+    method: "POST",
+  }).catch(() => null); // Ignore errors on logout
+  
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("currentUser");
+  localStorage.removeItem("currentParent");
+  localStorage.removeItem("currentUserRole");
+  
+  return result;
 }

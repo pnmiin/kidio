@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { motion } from "motion/react";
+import { useDrag, useDrop } from "react-dnd";
 import { Check, Gamepad2, Headphones, Mic, Star } from "lucide-react";
 import { KidioPageHeader } from "../../components/KidioPageHeader";
 import {
@@ -221,6 +222,77 @@ function PetsGame({
   );
 }
 
+const ItemTypes = {
+  WORD: "word",
+};
+
+function DraggableWord({ animal, matched, isWrong }: { animal: AnimalItem, matched: boolean, isWrong: boolean }) {
+  const [{ isDragging }, dragRef] = useDrag(() => ({
+    type: ItemTypes.WORD,
+    item: { id: animal.id },
+    canDrag: !matched,
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  }), [matched, animal.id]);
+
+  return (
+    <button
+      ref={dragRef as any}
+      type="button"
+      disabled={matched}
+      className={`min-h-36 flex items-center justify-center rounded-[1.5rem] px-4 text-xl font-black shadow-sm transition ${
+        matched
+          ? "bg-emerald-100 text-emerald-700 opacity-50 cursor-default"
+          : isDragging
+            ? "bg-sky-200 text-sky-800 opacity-50 cursor-grabbing"
+            : isWrong
+              ? "bg-red-100 text-red-600 animate-pulse cursor-grab"
+              : "bg-white text-[#183B5B] hover:bg-sky-100 cursor-grab"
+      }`}
+    >
+      {animal.word}
+    </button>
+  );
+}
+
+function DroppableAnimal({ animal, matched, isWrong, onDrop }: { animal: AnimalItem, matched: boolean, isWrong: boolean, onDrop: (wordId: string) => void }) {
+  const [{ isOver }, dropRef] = useDrop(() => ({
+    accept: ItemTypes.WORD,
+    drop: (item: { id: string }) => onDrop(item.id),
+    canDrop: () => !matched,
+    collect: (monitor) => ({
+      isOver: monitor.isOver() && monitor.canDrop(),
+    }),
+  }), [matched, onDrop]);
+
+  return (
+    <motion.div
+      ref={dropRef as any}
+      animate={isWrong ? { x: [0, -8, 8, -8, 8, 0] } : {}}
+      className={`relative flex min-h-36 flex-col items-center justify-center rounded-[1.5rem] bg-white p-4 text-center shadow-md ring-4 transition ${
+        matched
+          ? "ring-emerald-300"
+          : isOver
+            ? "ring-sky-400 scale-105"
+            : "ring-transparent"
+      }`}
+    >
+      {matched ? (
+        <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white">
+          <Check className="h-5 w-5 stroke-[4]" />
+        </span>
+      ) : null}
+      <AnimalVisual animal={animal} size="small" />
+      {matched ? (
+        <span className="mt-3 text-xl font-black text-[#183B5B]">
+          {animal.word}
+        </span>
+      ) : null}
+    </motion.div>
+  );
+}
+
 function FarmGame({
   animals,
   onComplete,
@@ -228,13 +300,12 @@ function FarmGame({
   animals: AnimalItem[];
   onComplete: () => void;
 }) {
-  const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
-  const [selectedAnimalId, setSelectedAnimalId] = useState<string | null>(null);
   const [matchedIds, setMatchedIds] = useState<string[]>([]);
   const [feedback, setFeedback] = useState("");
   const [roundIndex, setRoundIndex] = useState(0);
   const [showNextRound, setShowNextRound] = useState(false);
   const [wrongAnimalId, setWrongAnimalId] = useState<string | null>(null);
+
   const rounds = useMemo(
     () => [animals.slice(0, 4), animals.slice(4, 8)],
     [animals],
@@ -242,68 +313,33 @@ function FarmGame({
   const roundAnimals = rounds[roundIndex] ?? [];
   const wordCards = useMemo(() => shuffleArray(roundAnimals), [roundAnimals]);
   const iconCards = useMemo(() => shuffleArray(roundAnimals), [roundAnimals]);
-  const roundMatchedCount = roundAnimals.filter((animal) =>
-    matchedIds.includes(animal.id),
-  ).length;
 
-  const completeMatch = (animalId: string) => {
-    const nextMatched = [...matchedIds, animalId];
-    setMatchedIds(nextMatched);
-    setSelectedWordId(null);
-    setSelectedAnimalId(null);
-    setFeedback("Great job!");
-    setWrongAnimalId(null);
+  const handleDrop = (wordId: string, animalId: string) => {
+    if (matchedIds.includes(animalId)) return;
 
-    const nextRoundMatchedCount = roundAnimals.filter((roundAnimal) =>
-      nextMatched.includes(roundAnimal.id),
-    ).length;
+    if (wordId === animalId) {
+      const nextMatched = [...matchedIds, animalId];
+      setMatchedIds(nextMatched);
+      setFeedback("Great job!");
+      setWrongAnimalId(null);
+      
+      const nextRoundMatchedCount = roundAnimals.filter((roundAnimal) =>
+        nextMatched.includes(roundAnimal.id),
+      ).length;
 
-    if (nextMatched.length === animals.length) {
-      window.setTimeout(onComplete, 700);
-    } else if (nextRoundMatchedCount === roundAnimals.length) {
-      window.setTimeout(() => {
-        setShowNextRound(true);
-        setFeedback("");
-      }, 500);
-    }
-  };
-
-  const selectWord = (animal: AnimalItem) => {
-    if (matchedIds.includes(animal.id)) return;
-
-    if (selectedAnimalId) {
-      if (selectedAnimalId === animal.id) {
-        completeMatch(animal.id);
-        return;
+      if (nextMatched.length === animals.length) {
+        window.setTimeout(onComplete, 700);
+      } else if (nextRoundMatchedCount === roundAnimals.length) {
+        window.setTimeout(() => {
+          setShowNextRound(true);
+          setFeedback("");
+        }, 500);
       }
-
+    } else {
       setFeedback("Try again!");
-      setSelectedWordId(animal.id);
-      return;
+      setWrongAnimalId(animalId);
+      window.setTimeout(() => setWrongAnimalId(null), 600);
     }
-
-    setSelectedWordId(animal.id);
-    setFeedback("");
-  };
-
-  const selectIcon = (animal: AnimalItem) => {
-    if (matchedIds.includes(animal.id)) return;
-
-    if (!selectedWordId) {
-      setSelectedAnimalId(animal.id);
-      setFeedback("");
-      return;
-    }
-
-    if (selectedWordId === animal.id) {
-      completeMatch(animal.id);
-      return;
-    }
-
-    setFeedback("Try again!");
-    setSelectedAnimalId(animal.id);
-    setWrongAnimalId(animal.id);
-    window.setTimeout(() => setWrongAnimalId(null), 600);
   };
 
   if (showNextRound) {
@@ -318,8 +354,6 @@ function FarmGame({
           type="button"
           onClick={() => {
             setRoundIndex(1);
-            setSelectedWordId(null);
-            setSelectedAnimalId(null);
             setFeedback("");
             setShowNextRound(false);
           }}
@@ -336,7 +370,7 @@ function FarmGame({
       <div className="text-center">
         <div className="flex flex-wrap items-center justify-center gap-3">
           <span className="rounded-full bg-sky-100 px-4 py-2 text-base font-black text-sky-700">
-            Tap a word, then tap the matching animal.
+            Drag a word to the matching animal.
           </span>
           <span className="rounded-full bg-emerald-100 px-4 py-2 text-base font-black text-emerald-700">
             {matchedIds.length} / {animals.length} matched
@@ -351,67 +385,28 @@ function FarmGame({
         <div className="flex h-full flex-col rounded-[1.75rem] bg-sky-50 p-5">
           <h3 className="mb-4 text-2xl font-black text-[#183B5B]">Words</h3>
           <div className="grid flex-1 grid-cols-2 gap-3">
-            {wordCards.map((animal) => {
-              const matched = matchedIds.includes(animal.id);
-              return (
-                <button
-                  key={animal.id}
-                  type="button"
-                  disabled={matched}
-                  onClick={() => selectWord(animal)}
-                  className={`min-h-36 rounded-[1.5rem] px-4 text-xl font-black shadow-sm transition ${
-                    matched
-                      ? "bg-emerald-100 text-emerald-700"
-                      : selectedWordId === animal.id
-                        ? "bg-sky-500 text-white"
-                        : "bg-white text-[#183B5B] hover:bg-sky-100"
-                  }`}
-                >
-                  {animal.word}
-                </button>
-              );
-            })}
+            {wordCards.map((animal) => (
+              <DraggableWord 
+                key={animal.id} 
+                animal={animal} 
+                matched={matchedIds.includes(animal.id)} 
+                isWrong={false} 
+              />
+            ))}
           </div>
         </div>
         <div className="flex h-full flex-col rounded-[1.75rem] bg-emerald-50 p-5">
           <h3 className="mb-4 text-2xl font-black text-[#183B5B]">Animals</h3>
           <div className="grid flex-1 grid-cols-2 gap-3">
-            {iconCards.map((animal) => {
-              const matched = matchedIds.includes(animal.id);
-              const isWrong = wrongAnimalId === animal.id;
-              const selected = selectedAnimalId === animal.id;
-
-              return (
-                <motion.button
-                  key={animal.id}
-                  type="button"
-                  animate={isWrong ? { x: [0, -8, 8, -8, 8, 0] } : {}}
-                  whileHover={{ y: matched ? 0 : -4 }}
-                  whileTap={{ scale: matched ? 1 : 0.96 }}
-                  onClick={() => selectIcon(animal)}
-                  disabled={matched}
-                  className={`relative flex min-h-36 flex-col items-center justify-center rounded-[1.5rem] bg-white p-4 text-center shadow-md ring-4 transition ${
-                    matched
-                      ? "ring-emerald-300"
-                      : selected
-                        ? "ring-sky-400"
-                        : "ring-transparent hover:ring-sky-100"
-                  }`}
-                >
-                  {matched ? (
-                    <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white">
-                      <Check className="h-5 w-5 stroke-[4]" />
-                    </span>
-                  ) : null}
-                  <AnimalVisual animal={animal} size="small" />
-                  {matched ? (
-                    <span className="mt-3 text-xl font-black text-[#183B5B]">
-                      {animal.word}
-                    </span>
-                  ) : null}
-                </motion.button>
-              );
-            })}
+            {iconCards.map((animal) => (
+              <DroppableAnimal
+                key={animal.id}
+                animal={animal}
+                matched={matchedIds.includes(animal.id)}
+                isWrong={wrongAnimalId === animal.id}
+                onDrop={(wordId) => handleDrop(wordId, animal.id)}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -537,6 +532,8 @@ export function AnimalGroupPage() {
   const currentAnimal = animals[learnIndex];
   const finishGroup = () => {
     saveAnimalGroupCompleted(group.id);
+    const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
+    localStorage.setItem("currentKidStars", (currentStars + 3).toString());
     setStep("complete");
   };
 

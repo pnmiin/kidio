@@ -315,6 +315,11 @@ export function BigNumberCityGame() {
 
     if (findIndex === findPractice.length - 1) {
       saveBigNumberCityResult(findScore);
+
+      const earnedStars = getBigNumberCityStars(findScore);
+      const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
+      localStorage.setItem("currentKidStars", (currentStars + earnedStars).toString());
+
       setScreen("complete");
       return;
     }

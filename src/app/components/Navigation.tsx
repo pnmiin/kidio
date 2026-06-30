@@ -49,13 +49,13 @@ export function Navigation() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <button
-            onClick={() => navigate('/select-account')}
+            onClick={() => navigate('/parent-login')}
             className="kidio-cta-secondary px-4 sm:px-5 py-2 text-sm"
           >
             Login
           </button>
           <button
-            onClick={() => navigate('/select-account')}
+            onClick={() => navigate('/parent-login')}
             className="kidio-cta-primary px-4 sm:px-5 py-2 text-sm"
           >
             <span className="hidden sm:inline">Start Free Trial</span>

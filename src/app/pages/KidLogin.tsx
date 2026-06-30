@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { ArrowLeft, Calendar, Check, Languages, Loader2, User } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createChildProfile } from '../services/childApi';
 
 const ageOptions = ['5', '6', '7', '8', '9', '10'] as const;
@@ -33,6 +33,13 @@ export function KidLogin() {
   const [kidExperience, setKidExperience] = useState<KidExperience | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // If already logged in as parent, redirect to parent dashboard
+  useEffect(() => {
+    if (localStorage.getItem('accessToken')) {
+      navigate('/parent-dashboard', { replace: true });
+    }
+  }, [navigate]);
 
   const canSubmit = Boolean(kidName.trim() && kidAge && kidExperience && !isSubmitting);
 
@@ -111,7 +118,7 @@ export function KidLogin() {
 
       <button
         type="button"
-        onClick={() => navigate('/select-account')}
+        onClick={() => navigate('/')}
         className="relative z-20 inline-flex items-center gap-2 rounded-full bg-white/92 px-4 py-2.5 text-sm font-black text-[#102d54] shadow-[0_12px_28px_rgba(43,128,190,0.16)] transition hover:-translate-y-0.5 hover:bg-white focus:outline-none focus:ring-4 focus:ring-sky-200 sm:px-5 sm:py-3 sm:text-base"
       >
         <ArrowLeft className="h-5 w-5" />

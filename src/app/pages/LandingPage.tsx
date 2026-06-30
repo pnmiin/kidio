@@ -334,7 +334,7 @@ function PricingCard({ plan }: { plan: (typeof pricingPlans)[number] }) {
 
   const handleClick = () => {
     if (plan.onClick === "select") {
-      navigate("/select-account");
+      navigate("/parent-login");
       return;
     }
 
@@ -344,7 +344,7 @@ function PricingCard({ plan }: { plan: (typeof pricingPlans)[number] }) {
       navigate(`/checkout?plan=${plan.onClick}`);
     } else {
       sessionStorage.setItem("pendingPlan", plan.onClick);
-      navigate("/select-account");
+      navigate("/parent-login");
     }
   };
 
@@ -440,13 +440,13 @@ export function LandingPage() {
 
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:order-3">
               <button
-                onClick={() => navigate("/select-account")}
+                onClick={() => navigate("/parent-login")}
                 className="inline-flex rounded-[18px] border border-white bg-white px-3 py-2.5 text-xs font-black text-[#0877f2] shadow-[0_12px_26px_rgba(42,119,190,0.12)] transition-colors hover:bg-sky-50 sm:px-6 sm:py-3 sm:text-sm"
               >
                 Log in
               </button>
               <button
-                onClick={() => navigate("/select-account")}
+                onClick={() => navigate("/parent-login")}
                 className="inline-flex rounded-[18px] bg-gradient-to-r from-[#1891ff] to-[#006bff] px-3 py-2.5 text-xs font-black text-white shadow-[0_14px_28px_rgba(0,112,255,0.25)] transition-colors hover:from-[#0d85f4] hover:to-[#005ee0] sm:px-6 sm:py-3 sm:text-sm"
               >
                 <span className="hidden sm:inline">Start Free Trial</span>
@@ -502,7 +502,7 @@ export function LandingPage() {
               </p>
               <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <button
-                  onClick={() => navigate("/select-account")}
+                  onClick={() => navigate("/parent-login")}
                   className="inline-flex items-center justify-center gap-2 rounded-[24px] bg-gradient-to-r from-[#ff4d93] to-[#ff7ab0] px-8 py-4 text-base font-black text-white shadow-[0_18px_32px_rgba(255,77,147,0.28)]"
                 >
                   Start Free Trial
@@ -804,7 +804,7 @@ export function LandingPage() {
             </div>
             <div className="flex items-center gap-6">
               <button
-                onClick={() => navigate("/select-account")}
+                onClick={() => navigate("/parent-login")}
                 className="rounded-[24px] bg-gradient-to-r from-[#ff4d93] to-[#ff7ab0] px-8 py-4 text-base font-black text-white shadow-[0_16px_30px_rgba(255,77,147,0.26)]"
               >
                 Start Free Trial

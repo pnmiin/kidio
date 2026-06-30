@@ -1211,6 +1211,8 @@ export function TraceLetterGame() {
   const goToNextLetter = () => {
     if (currentLetterIndex === letters.length - 1) {
       advanceJourney('starter', 5);
+      const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
+      localStorage.setItem("currentKidStars", (currentStars + 3).toString());
       navigate('/kid-dashboard');
       return;
     }
