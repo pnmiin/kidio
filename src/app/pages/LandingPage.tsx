@@ -478,7 +478,7 @@ export function LandingPage() {
         id="top"
         className="overflow-x-hidden bg-[linear-gradient(180deg,#8edaff_0%,#dff5ff_31%,#f8fdff_64%,#ffffff_100%)] px-5 pb-14 pt-0 sm:px-8 lg:px-12"
       >
-        <section className="relative -mx-5 min-h-[760px] overflow-hidden bg-[linear-gradient(180deg,#8ed8ff_0%,#c9f2ff_62%,#f6fbff_100%)] sm:-mx-8 lg:-mx-12">
+        <section className="relative -mx-5 min-h-[760px] overflow-x-hidden overflow-y-visible bg-[linear-gradient(180deg,#8ed8ff_0%,#c9f2ff_62%,#f6fbff_100%)] sm:-mx-8 lg:-mx-12">
           <div className="relative mx-auto grid min-h-[760px] max-w-[1440px] grid-cols-1 overflow-visible px-5 pt-8 sm:px-8 lg:grid-cols-[46%_54%] lg:items-center lg:px-[72px] lg:pt-10">
             <SkyObjectField />
 
@@ -518,7 +518,7 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className="relative z-10 h-[360px] w-full lg:h-[600px]">
+            <div className="relative z-10 min-h-[430px] w-full overflow-visible lg:min-h-[640px]">
               {[
                 "left-[240px] top-[70px] w-5 opacity-[0.45]",
                 "right-[150px] top-[70px] w-6 opacity-[0.55]",
@@ -557,7 +557,7 @@ export function LandingPage() {
                 className="absolute bottom-[250px] right-[-70px] z-[5] w-[220px] object-contain"
                 draggable={false}
               />
-              <div className="absolute bottom-[20px] left-1/2 w-[340px] -translate-x-1/2 lg:bottom-[65px] lg:left-auto lg:right-[40px] lg:w-[520px] lg:translate-x-0">
+              <div className="absolute bottom-[20px] left-1/2 w-[clamp(260px,78vw,380px)] -translate-x-1/2 overflow-visible lg:bottom-[65px] lg:left-auto lg:right-[40px] lg:w-[clamp(380px,36vw,540px)] lg:translate-x-0">
                 <div className="absolute left-[-18px] top-[18px] z-[30] w-[190px] rounded-[30px] bg-white px-5 py-4 text-center shadow-[0_18px_38px_rgba(43,128,190,0.15)] max-[1280px]:left-[-4px] max-[1280px]:top-[10px] max-[1280px]:w-[175px] max-[1024px]:left-[16px] max-[1024px]:top-[8px] max-[1024px]:w-[160px] max-[900px]:hidden">
                   <p className="text-[18px] font-black text-[#102d54]">
                     Hi there!
@@ -570,7 +570,7 @@ export function LandingPage() {
                 <img
                   src="/assets/mascot-island.png"
                   alt="cow mascot"
-                  className="relative z-[6] w-full object-contain"
+                  className="relative z-[6] block h-auto w-full object-contain object-center"
                 />
               </div>
               <img
@@ -786,7 +786,7 @@ export function LandingPage() {
         </section>
 
         <section id="about" className="mx-auto max-w-[1440px] pb-4 pt-9">
-          <div className="flex flex-col items-center justify-between gap-6 overflow-hidden rounded-[30px] border border-white/80 bg-gradient-to-r from-violet-50 via-pink-50 to-sky-50 px-8 py-8 shadow-[0_22px_48px_rgba(43,128,190,0.12)] lg:flex-row">
+          <div className="flex flex-col items-center justify-between gap-6 overflow-visible rounded-[30px] border border-white/80 bg-gradient-to-r from-violet-50 via-pink-50 to-sky-50 px-8 py-8 shadow-[0_22px_48px_rgba(43,128,190,0.12)] lg:flex-row">
             <div className="flex items-center gap-6">
               <img
                 src="/assets/learning-path-earn-stars.png"
@@ -855,16 +855,17 @@ export function LandingPage() {
         />
 
         <div className="relative mx-auto max-w-7xl">
-          <div className="relative overflow-hidden rounded-[34px] border border-white/90 bg-gradient-to-br from-white/92 via-[#f8fdff]/90 to-[#eaf8ff]/88 p-6 shadow-[0_24px_58px_rgba(43,173,238,0.16)] md:p-8 lg:p-12">
+          <div className="relative overflow-visible rounded-[34px] border border-white/90 bg-gradient-to-br from-white/92 via-[#f8fdff]/90 to-[#eaf8ff]/88 p-6 shadow-[0_24px_58px_rgba(43,173,238,0.16)] md:p-8 lg:p-12">
             <div
-              className="absolute -right-8 bottom-0 hidden h-28 w-32 lg:block"
+              className="absolute -right-4 bottom-0 hidden h-[150px] w-[170px] overflow-visible lg:block"
               aria-hidden="true"
             >
               <div className="absolute bottom-0 right-0 h-16 w-32 rounded-full bg-transparent/80 shadow-[inset_0_10px_18px_rgba(255,255,255,0.8),0_12px_24px_rgba(43,173,238,0.12)]" />
               <img
                 src="/assets/mascot.png"
                 alt=""
-                className="absolute bottom-7 right-6 h-24 w-auto"
+                className="absolute bottom-7 right-6 z-[5] block object-contain object-center"
+                style={{ width: "clamp(92px, 8vw, 132px)", height: "auto" }}
               />
               <Heart className="absolute right-24 top-2 h-5 w-5 fill-pink-300 text-pink-400" />
             </div>
