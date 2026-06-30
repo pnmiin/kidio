@@ -25,6 +25,7 @@ import {
 } from 'recharts';
 import { PageBackground } from '../../components/PageBackground';
 import { KidioPageHeader } from '../../components/KidioPageHeader';
+import { ChildSummaryResponse, getChildren } from '../services/childApi';
 
 const weeklyData = [
   { day: 'Mon', minutes: 25 },
@@ -57,8 +58,6 @@ const recentLearning = [
   { lesson: 'Colors & Shapes', time: 'Yesterday', score: 92 },
 ];
 
-const DEMO_KID_ID = 'KID-DEMO01';
-
 interface Kid {
   kidId?: string;
   name: string;
@@ -84,6 +83,26 @@ interface ParentData {
 const cardClass =
   'rounded-3xl border border-white/80 bg-white/94 shadow-[0_16px_40px_rgba(45,120,160,0.09)]';
 
+function createDashboardKid(child: ChildSummaryResponse): Kid {
+  const name = child.name || 'KIDIO Kid';
+
+  return {
+    kidId: child.id,
+    name,
+    age: child.age,
+    avatar: name.charAt(0).toUpperCase(),
+    level: 'Starter A1',
+    topic: 'Animals & Nature',
+    stats: {
+      learningTime: 225,
+      wordsLearned: 143,
+      completedLessons: 24,
+      badges: child.totalStars || 0,
+      streak: child.currentStreakDays || 0,
+    },
+  };
+}
+
 export function ParentDashboard() {
   const navigate = useNavigate();
   const [selectedKid, setSelectedKid] = useState<Kid | null>(null);
@@ -96,56 +115,107 @@ export function ParentDashboard() {
   const [kidIdStatus, setKidIdStatus] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const parentDataStr = localStorage.getItem('parentData');
     const currentParentStr = localStorage.getItem('currentParent');
+    const currentUserStr = localStorage.getItem('currentUser');
+    const parentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
     const createDefaultParent = (email = 'demo@kidio.com', name = 'Parent') => ({
       name,
       email,
       kids: [],
     });
 
-    try {
-      const parent: ParentData = parentDataStr
-        ? JSON.parse(parentDataStr)
-        : createDefaultParent(currentParentStr || 'parent@kidio.com');
-      const linkedKids = (parent.kids || []).filter((kid) => Boolean(kid.kidId));
-      const linkedKidId = localStorage.getItem('linkedKidId')?.toUpperCase();
-      const activeKid =
-        linkedKids.find((kid) => kid.kidId?.toUpperCase() === linkedKidId) || linkedKids[0] || null;
+    const loadLocalParent = () => {
+      try {
+        const parent: ParentData = parentDataStr
+          ? JSON.parse(parentDataStr)
+          : createDefaultParent(currentParentStr || 'parent@kidio.com', parentUser?.displayName || 'Parent');
+        const linkedKids = (parent.kids || []).filter((kid) => Boolean(kid.kidId));
+        const linkedKidId = localStorage.getItem('linkedKidId')?.toUpperCase();
+        const activeKid =
+          linkedKids.find((kid) => kid.kidId?.toUpperCase() === linkedKidId) || linkedKids[0] || null;
 
-      parent.email ||= currentParentStr || undefined;
-      parent.kids = linkedKids;
-      localStorage.setItem('parentData', JSON.stringify(parent));
-      setParentName(parent.name || 'Parent');
-      setKids(linkedKids);
-      setSelectedKid(activeKid);
-      setShowLinkForm(!activeKid);
-    } catch (error) {
-      console.error('Error loading parent data:', error);
-      const fallback = createDefaultParent(currentParentStr || 'parent@kidio.com');
-      localStorage.setItem('parentData', JSON.stringify(fallback));
-      setParentName(fallback.name);
-      setShowLinkForm(true);
-    }
+        parent.email ||= currentParentStr || undefined;
+        parent.kids = linkedKids;
+        localStorage.setItem('parentData', JSON.stringify(parent));
+        setParentName(parent.name || parentUser?.displayName || 'Parent');
+        setKids(linkedKids);
+        setSelectedKid(activeKid);
+        setShowLinkForm(!activeKid);
+      } catch (error) {
+        console.error('Error loading parent data:', error);
+        const fallback = createDefaultParent(currentParentStr || 'parent@kidio.com', parentUser?.displayName || 'Parent');
+        localStorage.setItem('parentData', JSON.stringify(fallback));
+        setParentName(fallback.name);
+        setShowLinkForm(true);
+      }
+    };
+
+    const loadChildren = async () => {
+      if (!localStorage.getItem('accessToken')) {
+        loadLocalParent();
+        return;
+      }
+
+      setParentName(parentUser?.displayName || 'Parent');
+
+      try {
+        const response = await getChildren();
+        if (!isMounted) return;
+        if (!response.success) {
+          throw new Error(response.message || 'Could not load child profiles.');
+        }
+
+        const apiKids = (response.data?.items || []).map(createDashboardKid);
+        const linkedKidId = localStorage.getItem('linkedKidId')?.toUpperCase();
+        const activeKid =
+          apiKids.find((kid) => kid.kidId?.toUpperCase() === linkedKidId) || apiKids[0] || null;
+
+        const parent = createDefaultParent(currentParentStr || 'parent@kidio.com', parentUser?.displayName || 'Parent');
+        parent.kids = apiKids;
+        localStorage.setItem('parentData', JSON.stringify(parent));
+        if (activeKid?.kidId) {
+          localStorage.setItem('linkedKidId', activeKid.kidId);
+        }
+
+        setKids(apiKids);
+        setSelectedKid(activeKid);
+        setShowLinkForm(!activeKid);
+      } catch (error) {
+        console.error('Error loading backend children:', error);
+        if (isMounted) loadLocalParent();
+      }
+    };
+
+    loadChildren();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleLinkKidId = () => {
-    const enteredId = kidIdInput.trim().toUpperCase();
-    const currentKidId = localStorage.getItem('currentKidId')?.toUpperCase();
-    const validKidIds = [DEMO_KID_ID, currentKidId].filter(Boolean);
+    const enteredId = kidIdInput.trim();
+    const normalizedEnteredId = enteredId.toUpperCase();
+    const currentKidId = localStorage.getItem('currentKidId');
+    const validKidIds = [currentKidId, ...kids.map((kid) => kid.kidId)].filter(Boolean);
 
-    if (!enteredId || !validKidIds.includes(enteredId)) {
+    if (
+      !enteredId ||
+      !validKidIds.some((kidId) => kidId?.toUpperCase() === normalizedEnteredId)
+    ) {
       setKidIdStatus('error');
-      setKidIdMessage(`Use demo Kid ID ${DEMO_KID_ID} to preview the dashboard.`);
+      setKidIdMessage('Create a kid profile from Kid Mode first, then use that Kid ID here.');
       return;
     }
 
     const kidName = localStorage.getItem('currentKidName') || 'KIDIO Kid';
     const kidAge = Number(localStorage.getItem('currentKidAge') || '7');
-    const existingKid = kids.find((kid) => kid.kidId === enteredId);
+    const existingKid = kids.find((kid) => kid.kidId?.toUpperCase() === normalizedEnteredId);
     const linkedKid: Kid =
       existingKid || {
-        kidId: enteredId,
+        kidId: currentKidId || enteredId,
         name: kidName,
         age: kidAge,
         avatar: kidName.charAt(0).toUpperCase(),
@@ -164,7 +234,7 @@ export function ParentDashboard() {
 
     parentData.kids = updatedKids;
     localStorage.setItem('parentData', JSON.stringify(parentData));
-    localStorage.setItem('linkedKidId', enteredId);
+    localStorage.setItem('linkedKidId', linkedKid.kidId || enteredId);
     setKids(updatedKids);
     setSelectedKid(linkedKid);
     setKidIdStatus('success');
@@ -313,8 +383,7 @@ export function ParentDashboard() {
                     {selectedKid ? 'Link another child' : 'Connect your child'}
                   </h2>
                   <p className="mt-1 text-sm leading-6 text-gray-500">
-                    Enter the Kid ID shown in your child&apos;s account. For this preview, use{' '}
-                    <strong className="text-violet-600">{DEMO_KID_ID}</strong>.
+                    Enter the Kid ID created from Kid Mode to connect the learning profile to this parent account.
                   </p>
                 </div>
               </div>

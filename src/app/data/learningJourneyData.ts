@@ -32,9 +32,9 @@ export const learningJourneyLevels: JourneyLevel[] = [
     theme: "sky",
     topics: [
       { id: "abc-adventure", title: "ABC Adventure", image: "/assets/ABC adventure.png", order: 1, mission: "Learn letters and their sounds", practiceModes: modes, practiceRoute: "/trace-letter" },
-      { id: "number-land", title: "Number Land", image: "/assets/Numbers.png", order: 2, mission: "Learn numbers from 1 to 10", practiceModes: modes },
-      { id: "color-world", title: "Color World", image: "/assets/Color.png", order: 3, mission: "Learn red, blue, and green", practiceModes: modes, practiceRoute: "/color-games" },
-      { id: "animal-island", title: "Animal Island", image: "/assets/Animals.png", order: 4, mission: "Learn dog, cat, and bird", practiceModes: modes, practiceRoute: "/mini-game" },
+      { id: "number-land", title: "Number Land", image: "/assets/Numbers.png", order: 2, mission: "Learn numbers from 1 to 10", practiceModes: modes, practiceRoute: "/number-land" },
+      { id: "color-world", title: "Color World", image: "/assets/Color.png", order: 3, mission: "Learn red, blue, and green", practiceModes: modes, practiceRoute: "/color-world" },
+      { id: "animal-island", title: "Animal Island", image: "/assets/Animals.png", order: 4, mission: "Learn dog, cat, and bird", practiceModes: modes, practiceRoute: "/animal-island" },
       { id: "my-home", title: "My Home", image: "/assets/Home.png", order: 5, mission: "Learn easy objects at home", practiceModes: modes },
     ],
   },

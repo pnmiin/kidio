@@ -24,7 +24,9 @@ export function LearningJourneyPage() {
 
     localStorage.setItem("currentLessonId", topic.id);
     localStorage.setItem("currentKidCurrentTopic", topic.title);
-    navigate(topic.practiceRoute || "/video-lesson");
+    navigate(topic.practiceRoute || "/video-lesson", {
+      state: { fromLearningJourney: true },
+    });
   };
 
   return (

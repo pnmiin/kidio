@@ -128,7 +128,7 @@ export function LearningMap() {
       } else if (topic.title === 'Animals') {
         navigate('/mini-game');
       } else if (topic.title === 'Colors') {
-        navigate('/color-games');
+        navigate('/color-world');
       } else {
         navigate('/video-lesson');
       }

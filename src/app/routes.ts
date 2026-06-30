@@ -14,10 +14,20 @@ import { PaymentSuccess } from "./pages/PaymentSuccess";
 import { CustomerSupport } from "./pages/CustomerSupport";
 import { TraceLetterGame } from "./pages/TraceLetterGame";
 import { ColorGamesPage } from "./pages/ColorGamesPage";
+import { ColorHuntGame } from "./pages/ColorHuntGame";
+import { ColorMixGame } from "./pages/ColorMixGame";
 import { VocabularyAnimals } from "./pages/VocabularyAnimals";
 import { PlacementQuizPage } from "./pages/PlacementQuizPage";
 import { BodyPartsAdventurePage } from "./pages/BodyPartsAdventurePage";
 import { BodyPartsReviewPage } from "./pages/BodyPartsReviewPage";
+import { NumberLandMap } from "./pages/NumberLandMap";
+import { NumberVillageGame } from "./pages/NumberVillageGame";
+import { TeenTownGame } from "./pages/TeenTownGame";
+import { TensMountainGame } from "./pages/TensMountainGame";
+import { BigNumberCityGame } from "./pages/BigNumberCityGame";
+import { ReviewParkGame } from "./pages/ReviewParkGame";
+import { AnimalIslandPage } from "./pages/AnimalIslandPage";
+import { AnimalGroupPage } from "./pages/AnimalGroupPage";
 import { AdminDashboard } from "../pages/admin/AdminDashboard";
 
 export const router = createBrowserRouter([
@@ -90,12 +100,28 @@ export const router = createBrowserRouter([
     Component: TraceLetterGame,
   },
   {
-    path: "/color-games",
+    path: "/color-world",
     Component: ColorGamesPage,
+  },
+  {
+    path: "/color-world/color-hunt",
+    Component: ColorHuntGame,
+  },
+  {
+    path: "/color-world/mix",
+    Component: ColorMixGame,
   },
   {
     path: "/vocabulary-animals",
     Component: VocabularyAnimals,
+  },
+  {
+    path: "/animal-island",
+    Component: AnimalIslandPage,
+  },
+  {
+    path: "/animal-island/:groupId",
+    Component: AnimalGroupPage,
   },
   {
     path: "/adventure/body-parts",
@@ -104,6 +130,30 @@ export const router = createBrowserRouter([
   {
     path: "/review/body-parts",
     Component: BodyPartsReviewPage,
+  },
+  {
+    path: "/number-land",
+    Component: NumberLandMap,
+  },
+  {
+    path: "/number-land/village",
+    Component: NumberVillageGame,
+  },
+  {
+    path: "/number-land/teen-town",
+    Component: TeenTownGame,
+  },
+  {
+    path: "/number-land/tens-mountain",
+    Component: TensMountainGame,
+  },
+  {
+    path: "/number-land/big-number-city",
+    Component: BigNumberCityGame,
+  },
+  {
+    path: "/number-land/review-park",
+    Component: ReviewParkGame,
   },
   {
     path: "/admin",

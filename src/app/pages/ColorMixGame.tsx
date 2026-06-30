@@ -1,640 +1,327 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
-import { motion, AnimatePresence } from 'motion/react';
-import { Play, RotateCcw, ArrowRight, Palette, Paintbrush, Search } from 'lucide-react';
-import { KidioPageHeader } from '../../components/KidioPageHeader';
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { motion } from "motion/react";
+import { ArrowRight, Palette, Play, RotateCcw, Star } from "lucide-react";
+import { KidioPageHeader } from "../../components/KidioPageHeader";
 
-// Color mixing combinations
-const colorCombinations = [
-  { colors: ['Red', 'Blue'], result: 'Purple', hex1: '#EF4444', hex2: '#3B82F6', resultHex: '#8B5CF6' },
-  { colors: ['Red', 'Yellow'], result: 'Orange', hex1: '#EF4444', hex2: '#FBBF24', resultHex: '#F97316' },
-  { colors: ['Blue', 'Yellow'], result: 'Green', hex1: '#3B82F6', hex2: '#FBBF24', resultHex: '#22C55E' },
-  { colors: ['Red', 'White'], result: 'Pink', hex1: '#EF4444', hex2: '#FFFFFF', resultHex: '#EC4899' },
-  { colors: ['Blue', 'White'], result: 'Light Blue', hex1: '#3B82F6', hex2: '#FFFFFF', resultHex: '#7DD3FC' },
-  { colors: ['Black', 'White'], result: 'Gray', hex1: '#1F2937', hex2: '#FFFFFF', resultHex: '#9CA3AF' },
+type MixCombo = {
+  colors: [string, string];
+  result: string;
+  hex1: string;
+  hex2: string;
+  resultHex: string;
+};
+
+type MixPhase = "selecting" | "mixing" | "result";
+
+const colorCombinations: MixCombo[] = [
+  { colors: ["Red", "Blue"], result: "Purple", hex1: "#EF4444", hex2: "#3B82F6", resultHex: "#8B5CF6" },
+  { colors: ["Red", "Yellow"], result: "Orange", hex1: "#EF4444", hex2: "#FBBF24", resultHex: "#F97316" },
+  { colors: ["Blue", "Yellow"], result: "Green", hex1: "#3B82F6", hex2: "#FBBF24", resultHex: "#22C55E" },
+  { colors: ["Red", "White"], result: "Pink", hex1: "#EF4444", hex2: "#FFFFFF", resultHex: "#EC4899" },
+  { colors: ["Blue", "White"], result: "Light Blue", hex1: "#3B82F6", hex2: "#FFFFFF", resultHex: "#7DD3FC" },
+  { colors: ["Black", "White"], result: "Gray", hex1: "#1F2937", hex2: "#FFFFFF", resultHex: "#9CA3AF" },
 ];
 
-const primaryColors = [
-  { name: 'Red', hex: '#EF4444' },
-  { name: 'Blue', hex: '#3B82F6' },
-  { name: 'Yellow', hex: '#FBBF24' },
-  { name: 'White', hex: '#FFFFFF' },
-  { name: 'Black', hex: '#1F2937' },
+const mixColors = [
+  { name: "Red", hex: "#EF4444" },
+  { name: "Blue", hex: "#3B82F6" },
+  { name: "Yellow", hex: "#FBBF24" },
+  { name: "White", hex: "#FFFFFF" },
+  { name: "Black", hex: "#1F2937" },
 ];
 
-const answerColors = [
-  { name: 'Purple', hex: '#8B5CF6' },
-  { name: 'Green', hex: '#22C55E' },
-  { name: 'Orange', hex: '#F97316' },
-  { name: 'Pink', hex: '#EC4899' },
-  { name: 'Light Blue', hex: '#7DD3FC' },
-  { name: 'Gray', hex: '#9CA3AF' },
-];
+function resultSentence(combo: MixCombo) {
+  return `${combo.colors[0]} and ${combo.colors[1]} make ${combo.result}.`;
+}
 
-// Confetti component
-function Confetti() {
-  const colors = ['#EF4444', '#3B82F6', '#FBBF24', '#22C55E', '#8B5CF6', '#EC4899', '#F97316'];
-  const confettiPieces = Array.from({ length: 50 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    color: colors[Math.floor(Math.random() * colors.length)],
-    delay: Math.random() * 0.5,
-    rotation: Math.random() * 360,
-  }));
-
+function ColorSwatch({
+  name,
+  hex,
+  size = "large",
+}: {
+  name: string;
+  hex: string;
+  size?: "small" | "large";
+}) {
   return (
-    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-      {confettiPieces.map((piece) => (
-        <motion.div
-          key={piece.id}
-          initial={{ y: -20, x: `${piece.x}vw`, rotate: 0, opacity: 1 }}
-          animate={{
-            y: '100vh',
-            rotate: piece.rotation + 720,
-            opacity: [1, 1, 0],
-          }}
-          transition={{ duration: 3, delay: piece.delay, ease: 'easeOut' }}
-          className="absolute w-3 h-3 rounded-sm"
-          style={{ backgroundColor: piece.color }}
-        />
-      ))}
+    <div className="flex flex-col items-center">
+      <div
+        className={`${size === "large" ? "h-20 w-20" : "h-14 w-14"} rounded-[1.25rem] shadow-lg`}
+        style={{
+          backgroundColor: hex,
+          border: name === "White" ? "2px solid #D1D5DB" : "none",
+        }}
+      />
+      <span className="mt-2 text-sm font-black text-slate-600 sm:text-base">{name}</span>
     </div>
   );
 }
-
-// Floating background shapes
-function FloatingShapes() {
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden">
-      {[...Array(8)].map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute rounded-full opacity-20"
-          style={{
-            width: Math.random() * 100 + 50,
-            height: Math.random() * 100 + 50,
-            background: ['#EF4444', '#3B82F6', '#FBBF24', '#22C55E', '#8B5CF6'][i % 5],
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-          }}
-          animate={{
-            y: [0, -30, 0],
-            x: [0, 20, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 5 + Math.random() * 3,
-            repeat: Infinity,
-            delay: i * 0.5,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-type GameScreen = 'hero' | 'game' | 'menu';
 
 export function ColorMixGame() {
   const navigate = useNavigate();
-  const [screen, setScreen] = useState<GameScreen>('hero');
-  const [currentRound, setCurrentRound] = useState(0);
+  const [started, setStarted] = useState(false);
+  const [phase, setPhase] = useState<MixPhase>("selecting");
+  const [currentMixIndex, setCurrentMixIndex] = useState(0);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [bucketColors, setBucketColors] = useState<string[]>([]);
-  const [showQuestion, setShowQuestion] = useState(false);
-  const [showResult, setShowResult] = useState(false);
-  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [score, setScore] = useState(0);
-  const [totalRounds, setTotalRounds] = useState(0);
+  const [currentCombination, setCurrentCombination] = useState<MixCombo | null>(null);
+  const [completedMixes, setCompletedMixes] = useState(0);
   const [bucketShaking, setBucketShaking] = useState(false);
-  const [wrongAnswer, setWrongAnswer] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const targetCombination = colorCombinations[currentMixIndex];
+  const distractorColor =
+    mixColors.find((color) => !targetCombination.colors.includes(color.name)) ?? mixColors[0];
+  const availableColors = mixColors.filter((color) =>
+    [...targetCombination.colors, distractorColor.name].includes(color.name),
+  );
 
-  // Find the correct result based on selected colors
-  const findCorrectResult = (colors: string[]) => {
-    if (colors.length !== 2) return null;
-    const sorted = [...colors].sort();
-    for (const combo of colorCombinations) {
-      const comboSorted = [...combo.colors].sort();
-      if (comboSorted[0] === sorted[0] && comboSorted[1] === sorted[1]) {
-        return combo;
-      }
-    }
-    return null;
-  };
-
-  const [currentCombination, setCurrentCombination] = useState<typeof colorCombinations[0] | null>(null);
-
-  // Get answer options based on the actual mixed colors
-  const getAnswerOptions = (correctResult: string) => {
-    const correctAnswer = answerColors.find(c => c.name === correctResult)!;
-    const wrongAnswers = answerColors.filter(c => c.name !== correctResult);
-    const shuffledWrong = wrongAnswers.sort(() => Math.random() - 0.5).slice(0, 2);
-    return [correctAnswer, ...shuffledWrong].sort(() => Math.random() - 0.5);
-  };
-
-  const [answerOptions, setAnswerOptions] = useState<typeof answerColors>([]);
-
-  const handleColorSelect = (colorName: string) => {
-    if (selectedColors.length >= 2 || selectedColors.includes(colorName)) return;
-
-    const newSelected = [...selectedColors, colorName];
-    setSelectedColors(newSelected);
-    setBucketColors([...bucketColors, colorName]);
-
-    // When 2 colors are selected, find the result
-    if (newSelected.length === 2) {
-      const result = findCorrectResult(newSelected);
-      if (result) {
-        setCurrentCombination(result);
-        setAnswerOptions(getAnswerOptions(result.result));
-        setTimeout(() => {
-          setBucketShaking(true);
-          setTimeout(() => {
-            setBucketShaking(false);
-            setShowQuestion(true);
-          }, 800);
-        }, 300);
-      } else {
-        // Invalid combination - show error and reset
-        setWrongAnswer(true);
-        setTimeout(() => {
-          setWrongAnswer(false);
-          setSelectedColors([]);
-          setBucketColors([]);
-        }, 800);
-      }
-    }
-  };
-
-  const handleAnswerSelect = (colorName: string) => {
-    if (!currentCombination) return;
-    const correct = colorName === currentCombination.result;
-    setIsCorrect(correct);
-
-    if (correct) {
-      setShowConfetti(true);
-      setScore(score + 1);
-      setTotalRounds(totalRounds + 1);
-      setTimeout(() => {
-        setShowResult(true);
-        setShowConfetti(false);
-      }, 1500);
-    } else {
-      setWrongAnswer(true);
-      setTimeout(() => setWrongAnswer(false), 500);
-    }
-  };
-
-  const handleNext = () => {
-    setCurrentRound(currentRound + 1);
-    resetGame();
-  };
-
-  const handlePlayAgain = () => {
-    resetGame();
-  };
-
-  const resetGame = () => {
+  const resetSelection = () => {
+    setPhase("selecting");
     setSelectedColors([]);
-    setBucketColors([]);
-    setShowQuestion(false);
-    setShowResult(false);
-    setIsCorrect(null);
-    setWrongAnswer(false);
     setCurrentCombination(null);
-    setAnswerOptions([]);
+    setBucketShaking(false);
+    setFeedback("");
   };
 
   const startGame = () => {
-    setScreen('game');
-    setScore(0);
-    setTotalRounds(0);
-    setCurrentRound(0);
-    resetGame();
+    setStarted(true);
+    setCompletedMixes(0);
+    setCurrentMixIndex(0);
+    resetSelection();
   };
 
-  // Hero Screen
-  if (screen === 'hero') {
+  const handleColorSelect = (colorName: string) => {
+    if (phase !== "selecting" || selectedColors.includes(colorName) || selectedColors.length >= 2) return;
+    if (!targetCombination.colors.includes(colorName)) {
+      setFeedback(`Pick ${targetCombination.colors[0]} and ${targetCombination.colors[1]}.`);
+      return;
+    }
+
+    const nextColors = [...selectedColors, colorName];
+    setSelectedColors(nextColors);
+    if (nextColors.length === 2) {
+      setCurrentCombination(targetCombination);
+      setPhase("mixing");
+      setFeedback("");
+      setBucketShaking(true);
+
+      window.setTimeout(() => {
+        setBucketShaking(false);
+        setPhase("result");
+        setCompletedMixes((value) => Math.min(value + 1, colorCombinations.length));
+      }, 900);
+    }
+  };
+
+  const handleNextMix = () => {
+    setCurrentMixIndex((value) => (value + 1) % colorCombinations.length);
+    resetSelection();
+  };
+
+  const instruction =
+    phase === "mixing"
+      ? "Mixing colors..."
+      : phase === "result" && currentCombination
+        ? `Look! We made ${currentCombination.result.toLowerCase()}!`
+        : `Pick ${targetCombination.colors[0]} and ${targetCombination.colors[1]} to mix.`;
+
+  const bucketColor =
+    phase === "result" && currentCombination
+      ? currentCombination.resultHex
+      : "linear-gradient(to bottom, #E5E7EB, #D1D5DB)";
+  const isLastMixComplete = phase === "result" && completedMixes >= colorCombinations.length;
+
+  if (!started) {
     return (
-      <div className="min-h-screen app-sky-background relative overflow-hidden">
-        <FloatingShapes />
-        
-        <div className="relative z-10 px-6 py-6">
-          <div className="max-w-4xl mx-auto">
-            <KidioPageHeader backLabel="Back" backTo="/learning-map" />
-          </div>
+      <div className="relative min-h-screen overflow-hidden app-sky-background px-4 py-5 text-slate-700 sm:px-7">
+        <div className="relative z-10 mx-auto max-w-5xl">
+          <KidioPageHeader backLabel="Back to Color World" backTo="/color-world" />
 
-          <div className="max-w-4xl mx-auto mt-12 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: -30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <h1 className="text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 mb-4">
-                Mix Colors Lab
-              </h1>
-              <p className="text-xl text-gray-600 mb-8">Mix colors and discover magic!</p>
-            </motion.div>
-
-            {/* Illustration */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
-              className="relative w-64 h-64 mx-auto mb-8"
-            >
-              {/* Color splashes */}
-              <motion.div
-                className="absolute -left-8 top-0 w-20 h-20 rounded-full bg-red-400 opacity-80"
-                animate={{ scale: [1, 1.1, 1], rotate: [0, 10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              <motion.div
-                className="absolute -right-8 top-0 w-16 h-16 rounded-full bg-blue-400 opacity-80"
-                animate={{ scale: [1, 1.15, 1], rotate: [0, -10, 0] }}
-                transition={{ duration: 2.5, repeat: Infinity, delay: 0.3 }}
-              />
-              <motion.div
-                className="absolute left-1/2 -translate-x-1/2 -top-4 w-14 h-14 rounded-full bg-yellow-400 opacity-80"
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 0.6 }}
-              />
-
-              {/* Cute bucket */}
-              <motion.div
-                className="absolute bottom-0 left-1/2 -translate-x-1/2"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <div className="relative">
-                  {/* Bucket body */}
-                  <div className="w-40 h-32 bg-gradient-to-b from-gray-200 to-gray-300 rounded-b-3xl rounded-t-lg relative overflow-hidden">
-                    {/* Bucket shine */}
-                    <div className="absolute left-2 top-2 bottom-2 w-4 bg-white/30 rounded-full" />
-                    {/* Cute face */}
-                    <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-4">
-                      <div className="w-4 h-4 bg-gray-700 rounded-full" />
-                      <div className="w-4 h-4 bg-gray-700 rounded-full" />
-                    </div>
-                    <div className="absolute top-16 left-1/2 -translate-x-1/2 w-8 h-4 border-b-4 border-gray-700 rounded-b-full" />
-                  </div>
-                  {/* Bucket handle */}
-                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-28 h-8 border-4 border-gray-400 rounded-t-full" />
-                </div>
-              </motion.div>
-            </motion.div>
-
-            {/* Play Button */}
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+          <section className="mx-auto mt-12 max-w-3xl rounded-[2rem] bg-white/90 p-7 text-center shadow-xl ring-1 ring-white">
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[1.75rem] bg-violet-100 text-violet-600">
+              <Palette className="h-14 w-14" />
+            </div>
+            <h1 className="mt-5 text-5xl font-black text-[#183B5B]">Mix Colors Lab</h1>
+            <p className="mt-3 text-xl font-bold text-slate-500">
+              Pick two colors and see what they make.
+            </p>
+            <button
+              type="button"
               onClick={startGame}
-              className="px-12 py-5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-2xl font-bold rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-3 mx-auto"
+              className="mt-7 inline-flex min-h-16 items-center justify-center gap-3 rounded-full bg-violet-500 px-10 py-4 text-xl font-black text-white shadow-lg shadow-violet-200 transition hover:bg-violet-600"
             >
-              <Play className="w-8 h-8 fill-white" />
+              <Play className="h-7 w-7 fill-white" />
               Play Now
-            </motion.button>
-
-            {/* Game Cards */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-16"
-            >
-              <motion.div
-                whileHover={{ y: -5, scale: 1.02 }}
-                onClick={startGame}
-                className="bg-gradient-to-br from-purple-400 to-pink-400 p-6 rounded-3xl shadow-lg cursor-pointer"
-              >
-                <div className="w-16 h-16 bg-white/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Palette className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Mix Colors</h3>
-                <p className="text-white/80 text-sm">Mix two colors and discover a new one!</p>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ y: -5, scale: 1.02 }}
-                className="bg-gradient-to-br from-orange-400 to-yellow-400 p-6 rounded-3xl shadow-lg cursor-pointer opacity-70"
-              >
-                <div className="w-16 h-16 bg-white/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Paintbrush className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Paint Object</h3>
-                <p className="text-white/80 text-sm">Color objects with the correct color!</p>
-                <span className="text-xs text-white/60 mt-2 block">Coming Soon</span>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ y: -5, scale: 1.02 }}
-                className="bg-gradient-to-br from-green-400 to-teal-400 p-6 rounded-3xl shadow-lg cursor-pointer opacity-70"
-              >
-                <div className="w-16 h-16 bg-white/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Color Hunt</h3>
-                <p className="text-white/80 text-sm">Find all objects with the target color!</p>
-                <span className="text-xs text-white/60 mt-2 block">Coming Soon</span>
-              </motion.div>
-            </motion.div>
-          </div>
+            </button>
+          </section>
         </div>
       </div>
     );
   }
 
-  // Game Screen
   return (
-    <div className="min-h-screen app-sky-background relative overflow-hidden">
-      <FloatingShapes />
-      {showConfetti && <Confetti />}
+    <div className="relative min-h-screen overflow-x-hidden app-sky-background px-4 py-5 text-slate-700 sm:px-7">
+      <div className="relative z-10 mx-auto max-w-6xl">
+        <KidioPageHeader
+          backLabel="Back to Color World"
+          backTo="/color-world"
+          rightContent={
+            <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-3 text-lg font-black text-amber-600 shadow-md">
+              <Star className="h-6 w-6 fill-amber-300 text-amber-300" />
+              Mix {currentMixIndex + 1} / {colorCombinations.length}
+            </div>
+          }
+        />
 
-      <div className="relative z-10 px-6 py-6">
-        <div className="max-w-4xl mx-auto">
-          <KidioPageHeader
-            backLabel="Back"
-            backTo="/learning-map"
-            rightContent={
-              <div className="bg-white/80 backdrop-blur-sm px-6 py-3 rounded-full shadow-md">
-                <span className="text-lg font-bold text-purple-600">Score: {score}/{totalRounds}</span>
-              </div>
-            }
-          />
+        <main className="mt-7 rounded-[2rem] bg-white/92 p-5 text-center shadow-xl ring-1 ring-white sm:p-7">
+          <h1 className="text-4xl font-black text-[#183B5B]">Mix Colors Lab</h1>
+          <p className="mt-3 text-2xl font-black text-violet-700">{instruction}</p>
 
-          {/* Game Title */}
-          <motion.h1
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-3xl font-bold text-center text-purple-600 mb-6"
-          >
-            Mix Colors Lab
-          </motion.h1>
+          {phase === "selecting" ? (
+            <div className="mt-6 flex flex-wrap justify-center gap-4">
+              {availableColors.map((color) => {
+                const isSelected = selectedColors.includes(color.name);
 
-          {/* Instruction */}
-          <AnimatePresence mode="wait">
-            {!showResult && (
-              <motion.p
-                key="instruction"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center text-lg text-gray-600 mb-8"
-              >
-                {showQuestion 
-                  ? "What color do we get?"
-                  : "Pick 2 colors and drop into the bucket"
-                }
-              </motion.p>
-            )}
-          </AnimatePresence>
-
-          {/* Main Game Area */}
-          <div className="flex flex-col items-center">
-            {/* Color Selection - Show all 5 primary colors */}
-            {!showQuestion && !showResult && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-wrap justify-center gap-4 md:gap-6 mb-8"
-              >
-                {primaryColors.map((color) => (
+                return (
                   <motion.button
                     key={color.name}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
+                    type="button"
+                    whileHover={{ scale: 1.06 }}
+                    whileTap={{ scale: 0.94 }}
                     onClick={() => handleColorSelect(color.name)}
-                    disabled={selectedColors.includes(color.name)}
-                    className={`w-16 h-16 md:w-20 md:h-20 rounded-full shadow-lg transition-all flex items-center justify-center ${
-                      selectedColors.includes(color.name) ? 'opacity-30 scale-75' : 'hover:shadow-xl'
+                    disabled={isSelected}
+                    className={`flex h-24 w-24 flex-col items-center justify-center rounded-[1.5rem] text-base font-black shadow-lg transition ${
+                      isSelected ? "scale-90 opacity-45" : "hover:shadow-xl"
                     }`}
-                    style={{ 
+                    style={{
                       backgroundColor: color.hex,
-                      border: color.name === 'White' ? '3px solid #E5E7EB' : 'none'
+                      border: color.name === "White" ? "3px solid #E5E7EB" : "none",
+                      color: color.name === "White" || color.name === "Yellow" ? "#334155" : "#FFFFFF",
                     }}
-                  >
-                    <span className={`text-xs md:text-sm font-bold ${color.name === 'White' || color.name === 'Yellow' ? 'text-gray-700' : 'text-white'}`}>
-                      {color.name}
-                    </span>
-                  </motion.button>
-                ))}
-              </motion.div>
-            )}
-
-            {/* Bucket - Hide when showing result */}
-            {!showResult && (
-            <motion.div
-              animate={bucketShaking ? { 
-                rotate: [0, -10, 10, -10, 10, 0],
-                scale: [1, 1.1, 1.1, 1.1, 1.1, 1]
-              } : {}}
-              transition={{ duration: 0.5 }}
-              className="relative mb-8"
-            >
-              {/* Glow effect when full */}
-              {bucketColors.length === 2 && currentCombination && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: [0.3, 0.6, 0.3] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                  className="absolute -inset-4 rounded-3xl"
-                  style={{ 
-                    background: `radial-gradient(circle, ${showResult ? currentCombination.resultHex : '#A855F7'}40 0%, transparent 70%)` 
-                  }}
-                />
-              )}
-
-              <div className="relative">
-                {/* Bucket body */}
-                <motion.div 
-                  className="w-48 h-40 rounded-b-[3rem] rounded-t-xl relative overflow-hidden transition-colors duration-500"
-                  style={{ 
-                    background: showResult && currentCombination
-                      ? `linear-gradient(to bottom, ${currentCombination.resultHex}, ${currentCombination.resultHex}dd)`
-                      : 'linear-gradient(to bottom, #E5E7EB, #D1D5DB)'
-                  }}
-                >
-                  {/* Bucket shine */}
-                  <div className="absolute left-3 top-3 bottom-3 w-5 bg-white/30 rounded-full" />
-                  
-                  {/* Colors in bucket */}
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                    {bucketColors.map((colorName, index) => {
-                      const color = primaryColors.find(c => c.name === colorName);
-                      return (
-                        <motion.div
-                          key={index}
-                          initial={{ y: -50, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ type: 'spring', bounce: 0.5 }}
-                          className="w-8 h-8 rounded-full"
-                          style={{ backgroundColor: color?.hex }}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {/* Cute face */}
-                  <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-6">
-                    <motion.div 
-                      animate={showResult && isCorrect ? { scale: [1, 1.2, 1] } : {}}
-                      className="w-5 h-5 bg-gray-700 rounded-full"
-                    />
-                    <motion.div 
-                      animate={showResult && isCorrect ? { scale: [1, 1.2, 1] } : {}}
-                      className="w-5 h-5 bg-gray-700 rounded-full"
-                    />
-                  </div>
-                  <motion.div 
-                    animate={showResult && isCorrect ? { scaleY: 1.5 } : {}}
-                    className="absolute top-16 left-1/2 -translate-x-1/2 w-10 h-5 border-b-4 border-gray-700 rounded-b-full"
-                  />
-                </motion.div>
-                
-                {/* Bucket handle */}
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-32 h-8 border-4 border-gray-400 rounded-t-full" />
-              </div>
-            </motion.div>
-            )}
-
-            {/* Answer Options */}
-            {showQuestion && !showResult && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-wrap justify-center gap-4 mb-8"
-              >
-                {answerOptions.map((color) => (
-                  <motion.button
-                    key={color.name}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    animate={wrongAnswer ? { x: [0, -10, 10, -10, 10, 0] } : {}}
-                    onClick={() => handleAnswerSelect(color.name)}
-                    className="px-8 py-4 rounded-2xl text-white font-bold text-lg shadow-lg hover:shadow-xl transition-all"
-                    style={{ backgroundColor: color.hex }}
                   >
                     {color.name}
                   </motion.button>
-                ))}
-              </motion.div>
-            )}
+                );
+              })}
+            </div>
+          ) : null}
 
-            {/* Try Again Message */}
-            <AnimatePresence>
-              {wrongAnswer && !showQuestion && (
-                <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="text-xl font-bold text-orange-500 mb-4"
-                >
-                  These colors don&apos;t mix! Try another pair.
-                </motion.p>
-              )}
-              {wrongAnswer && showQuestion && (
-                <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="text-xl font-bold text-orange-500 mb-4"
-                >
-                  Not quite! Try again!
-                </motion.p>
-              )}
-            </AnimatePresence>
-
-            {/* Result */}
-            <AnimatePresence>
-              {showResult && currentCombination && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="absolute inset-0 flex flex-col items-center justify-center text-center bg-white z-20 px-4 py-8"
-                >
-                  {/* Color equation with squares and names below */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex items-center justify-center gap-3 md:gap-4 mb-6"
-                  >
-                    {/* First color */}
-                    <div className="flex flex-col items-center">
-                      <div 
-                        className="w-16 h-16 md:w-20 md:h-20 rounded-xl shadow-lg"
-                        style={{ 
-                          backgroundColor: currentCombination.hex1,
-                          border: currentCombination.colors[0] === 'White' ? '2px solid #D1D5DB' : 'none'
-                        }}
-                      />
-                      <span className="text-sm md:text-base font-semibold text-gray-700 mt-2">{currentCombination.colors[0]}</span>
-                    </div>
-
-                    <span className="text-2xl md:text-3xl font-bold text-gray-800">+</span>
-
-                    {/* Second color */}
-                    <div className="flex flex-col items-center">
-                      <div 
-                        className="w-16 h-16 md:w-20 md:h-20 rounded-xl shadow-lg"
-                        style={{ 
-                          backgroundColor: currentCombination.hex2,
-                          border: currentCombination.colors[1] === 'White' ? '2px solid #D1D5DB' : 'none'
-                        }}
-                      />
-                      <span className="text-sm md:text-base font-semibold text-gray-700 mt-2">{currentCombination.colors[1]}</span>
-                    </div>
-
-                    <span className="text-2xl md:text-3xl font-bold text-gray-800">=</span>
-
-                    {/* Result color */}
-                    <div className="flex flex-col items-center">
-                      <div 
-                        className="w-16 h-16 md:w-20 md:h-20 rounded-xl shadow-lg"
-                        style={{ backgroundColor: currentCombination.resultHex }}
-                      />
-                      <span className="text-sm md:text-base font-semibold text-gray-700 mt-2">{currentCombination.result}</span>
-                    </div>
-                  </motion.div>
-
-                  <motion.p
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.3, type: 'spring' }}
-                    className="text-3xl font-bold text-green-500 mb-6"
-                  >
-                    Correct!
-                  </motion.p>
-
-                  <div className="flex gap-3 md:gap-4 justify-center flex-wrap">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handlePlayAgain}
-                      className="flex items-center gap-2 px-5 py-3 md:px-6 bg-gray-200 text-gray-700 font-bold rounded-full hover:bg-gray-300 transition-colors"
-                    >
-                      <RotateCcw className="w-5 h-5" />
-                      Play Again
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleNext}
-                      className="flex items-center gap-2 px-5 py-3 md:px-6 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-full hover:shadow-lg transition-all"
-                    >
-                      Next
-                      <ArrowRight className="w-5 h-5" />
-                    </motion.button>
+          <div className="mt-8 flex flex-col items-center">
+            <motion.div
+              animate={
+                bucketShaking
+                  ? {
+                      rotate: [0, -9, 9, -9, 9, 0],
+                      scale: [1, 1.08, 1.08, 1.08, 1],
+                    }
+                  : {}
+              }
+              transition={{ duration: 0.6 }}
+              className="relative"
+            >
+              <div
+                className="relative h-44 w-56 overflow-hidden rounded-b-[3rem] rounded-t-2xl shadow-xl transition-colors duration-500"
+                style={{ background: bucketColor }}
+              >
+                <div className="absolute left-4 top-4 bottom-4 w-6 rounded-full bg-white/30" />
+                <div className="absolute top-11 left-1/2 flex -translate-x-1/2 items-center gap-8">
+                  <div className="h-5 w-5 rounded-full bg-slate-700" />
+                  <div className="h-5 w-5 rounded-full bg-slate-700" />
+                </div>
+                <div className="absolute top-24 left-1/2 h-5 w-12 -translate-x-1/2 rounded-b-full border-b-4 border-slate-700" />
+                {phase !== "result" ? (
+                  <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-3">
+                    {selectedColors.map((colorName) => {
+                      const color = mixColors.find((item) => item.name === colorName);
+                      return color ? (
+                        <motion.div
+                          key={color.name}
+                          initial={{ y: -30, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          className="h-10 w-10 rounded-full shadow-md"
+                          style={{
+                            backgroundColor: color.hex,
+                            border: color.name === "White" ? "2px solid #D1D5DB" : "none",
+                          }}
+                        />
+                      ) : null;
+                    })}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                ) : null}
+              </div>
+              <div className="absolute -top-7 left-1/2 h-10 w-40 -translate-x-1/2 rounded-t-full border-4 border-slate-400" />
+            </motion.div>
+
+            {phase === "mixing" ? (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 rounded-full bg-violet-100 px-6 py-3 text-xl font-black text-violet-700"
+              >
+                Mixing colors...
+              </motion.div>
+            ) : null}
+
+            {feedback ? (
+              <div className="mt-5 rounded-[1.25rem] bg-amber-100 px-5 py-4 text-lg font-black text-amber-700">
+                {feedback}
+              </div>
+            ) : null}
+
+            {phase === "result" && currentCombination ? (
+              <motion.div
+                initial={{ opacity: 0, y: 18, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="mt-7 w-full max-w-3xl rounded-[2rem] bg-white p-6 shadow-lg ring-1 ring-slate-100"
+              >
+                <div className="flex flex-wrap items-center justify-center gap-4">
+                  <ColorSwatch name={currentCombination.colors[0]} hex={currentCombination.hex1} />
+                  <span className="text-4xl font-black text-[#183B5B]">+</span>
+                  <ColorSwatch name={currentCombination.colors[1]} hex={currentCombination.hex2} />
+                  <span className="text-4xl font-black text-[#183B5B]">=</span>
+                  <ColorSwatch name={currentCombination.result} hex={currentCombination.resultHex} />
+                </div>
+
+                <p className="mt-6 text-3xl font-black text-[#183B5B]">
+                  {currentCombination.colors[0]} + {currentCombination.colors[1]} = {currentCombination.result}
+                </p>
+                <p className="mt-2 text-2xl font-black text-slate-600">
+                  {resultSentence(currentCombination)}
+                </p>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={resetSelection}
+                    className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-slate-100 px-6 py-3 text-lg font-black text-slate-700 shadow-md transition hover:bg-slate-200"
+                  >
+                    <RotateCcw className="h-5 w-5" />
+                    Try Again
+                  </button>
+                  {isLastMixComplete ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/color-world")}
+                      className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-lg font-black text-white shadow-md transition hover:bg-emerald-600"
+                    >
+                      Done
+                      <ArrowRight className="h-5 w-5" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleNextMix}
+                      className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-lg font-black text-white shadow-md transition hover:bg-emerald-600"
+                    >
+                      Next Mix
+                      <ArrowRight className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            ) : null}
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

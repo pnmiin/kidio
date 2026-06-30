@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router';
-import { createKidId } from '../utils/kidId';
 import { motion } from 'motion/react';
-import { ArrowLeft, Calendar, Check, Languages, User } from 'lucide-react';
+import { ArrowLeft, Calendar, Check, Languages, Loader2, User } from 'lucide-react';
 import { useState } from 'react';
+import { createChildProfile } from '../services/childApi';
 
 const ageOptions = ['5', '6', '7', '8', '9', '10'] as const;
 
@@ -31,44 +31,66 @@ export function KidLogin() {
   const [kidName, setKidName] = useState('');
   const [kidAge, setKidAge] = useState('');
   const [kidExperience, setKidExperience] = useState<KidExperience | ''>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  const canSubmit = Boolean(kidName.trim() && kidAge && kidExperience);
+  const canSubmit = Boolean(kidName.trim() && kidAge && kidExperience && !isSubmitting);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     const normalizedName = kidName.trim();
     if (!normalizedName || !kidAge || !kidExperience) return;
-
-    localStorage.setItem('currentKidName', normalizedName);
-    localStorage.setItem('currentKidAge', kidAge);
-    localStorage.setItem('currentKidId', createKidId());
-    const normalizedExperience =
-      kidExperience === 'No' ? 'no' : kidExperience === 'A little' ? 'little' : 'yes';
-    localStorage.setItem('currentKidExperience', normalizedExperience);
-    ['starter', 'explorer', 'builder', 'story', 'speaking'].forEach((pathKey) => {
-      localStorage.removeItem(`kidioJourneyIndex:${pathKey}`);
-    });
-
-    if (normalizedExperience === 'no') {
-      localStorage.setItem('kidioPath', 'starter');
-      localStorage.setItem('kidioLevel', 'starter');
-      localStorage.setItem('currentKidLevel', 'starter');
-      localStorage.setItem('currentKidPath', 'starter');
-      localStorage.setItem('currentKidPathLabel', 'Starter Adventure');
-      localStorage.setItem('currentKidCurrentTopic', 'Rainbow Valley');
-      console.log('Assigned KIDIO path:', 'starter');
-      navigate('/kid-dashboard');
+    if (!localStorage.getItem('accessToken')) {
+      setFormError('Parent login is needed first so we can save this kid profile.');
       return;
     }
 
-    localStorage.removeItem('kidioPath');
-    localStorage.removeItem('kidioLevel');
-    localStorage.removeItem('currentKidLevel');
-    localStorage.removeItem('currentKidPath');
-    localStorage.removeItem('currentKidPathLabel');
-    localStorage.removeItem('currentKidCurrentTopic');
-    navigate('/placement');
+    setIsSubmitting(true);
+    setFormError('');
+
+    try {
+      const response = await createChildProfile(normalizedName, Number(kidAge));
+      if (!response.success || !response.data?.id) {
+        throw new Error(response.message || 'Could not create kid profile.');
+      }
+
+      const kidId = response.data.id;
+      localStorage.setItem('currentKidName', response.data.name || normalizedName);
+      localStorage.setItem('currentKidAge', String(response.data.age || kidAge));
+      localStorage.setItem('currentKidId', kidId);
+      localStorage.setItem('currentKid', kidId);
+      localStorage.setItem('linkedKidId', kidId);
+      const normalizedExperience =
+        kidExperience === 'No' ? 'no' : kidExperience === 'A little' ? 'little' : 'yes';
+      localStorage.setItem('currentKidExperience', normalizedExperience);
+      ['starter', 'explorer', 'builder', 'story', 'speaking'].forEach((pathKey) => {
+        localStorage.removeItem(`kidioJourneyIndex:${pathKey}`);
+      });
+
+      if (normalizedExperience === 'no') {
+        localStorage.setItem('kidioPath', 'starter');
+        localStorage.setItem('kidioLevel', 'starter');
+        localStorage.setItem('currentKidLevel', 'starter');
+        localStorage.setItem('currentKidPath', 'starter');
+        localStorage.setItem('currentKidPathLabel', 'Starter Adventure');
+        localStorage.setItem('currentKidCurrentTopic', 'Rainbow Valley');
+        navigate('/kid-dashboard');
+        return;
+      }
+
+      localStorage.removeItem('kidioPath');
+      localStorage.removeItem('kidioLevel');
+      localStorage.removeItem('currentKidLevel');
+      localStorage.removeItem('currentKidPath');
+      localStorage.removeItem('currentKidPathLabel');
+      localStorage.removeItem('currentKidCurrentTopic');
+      navigate('/placement');
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Could not create kid profile.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -241,6 +263,12 @@ export function KidLogin() {
               ⭐ We will create the perfect learning adventure for you!
             </div>
 
+            {formError && (
+              <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-center text-sm font-bold text-rose-600 sm:text-base">
+                {formError}
+              </div>
+            )}
+
             <motion.button
               whileHover={canSubmit ? { y: -2, scale: 1.01 } : undefined}
               whileTap={canSubmit ? { scale: 0.98 } : undefined}
@@ -248,7 +276,14 @@ export function KidLogin() {
               disabled={!canSubmit}
               className="h-16 w-full rounded-full bg-gradient-to-r from-[#29b8ff] to-[#0877f2] px-5 text-xl font-black text-white shadow-[0_18px_34px_rgba(8,119,242,0.28)] transition enabled:hover:shadow-[0_22px_40px_rgba(8,119,242,0.36)] disabled:cursor-not-allowed disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none sm:text-2xl"
             >
-              Start My Journey
+              {isSubmitting ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  Creating...
+                </span>
+              ) : (
+                'Start My Journey'
+              )}
             </motion.button>
           </form>
         </motion.div>

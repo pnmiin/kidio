@@ -9,3 +9,12 @@ export function isAdminSession() {
   const role = localStorage.getItem("currentUserRole");
   return isAdminEmail(email) && role === "admin";
 }
+
+export function clearAdminSession() {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("accessTokenExpiry");
+  localStorage.removeItem("currentUser");
+  localStorage.removeItem("currentParent");
+  localStorage.removeItem("currentUserRole");
+}

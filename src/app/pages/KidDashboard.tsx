@@ -34,7 +34,7 @@ type LearningPathData = {
     connector: string;
     icon: string;
   };
-  journey: Array<{ label: string; icon: string; status: JourneyStatus }>;
+  journey: Array<{ label: string; icon: string; status: JourneyStatus; route?: string }>;
 };
 
 const learningPathConfig: Record<PathKey, LearningPathData> = {
@@ -54,7 +54,7 @@ const learningPathConfig: Record<PathKey, LearningPathData> = {
     },
     journey: [
       { label: "Alphabet", icon: "ABC", status: "current" },
-      { label: "Numbers", icon: "123", status: "next" },
+      { label: "Numbers", icon: "123", status: "next", route: "/number-land" },
       { label: "Colors", icon: "COLOR", status: "locked" },
       { label: "Basic Animals", icon: "PET", status: "locked" },
       { label: "Simple Objects", icon: "TOY", status: "locked" },
@@ -219,7 +219,10 @@ export function KidDashboard() {
         journeyIndex === 0
           ? data.lessonId
           : currentWorld.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      lessonRoute: journeyIndex === 0 ? data.lessonRoute : "/video-lesson",
+      lessonRoute:
+        journeyIndex === 0
+          ? data.lessonRoute
+          : currentWorld.route || "/video-lesson",
       journey,
     };
 
@@ -424,7 +427,17 @@ export function KidDashboard() {
 
                 return (
                   <div key={world.label} className="flex flex-1 items-center">
-                    <div
+                    <button
+                      type="button"
+                      disabled={!world.route || world.status === "locked"}
+                      onClick={() => {
+                        if (!world.route || world.status === "locked") return;
+                        localStorage.setItem(
+                          "currentLessonId",
+                          world.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+                        );
+                        navigate(world.route);
+                      }}
                       className={`relative z-10 flex min-h-[108px] min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-2xl border-2 px-3 py-3 text-center ${
                         isCurrent
                           ? `${dashboardData.mapTheme.current} shadow-[0_10px_22px_rgba(124,58,237,0.16)]`
@@ -433,7 +446,7 @@ export function KidDashboard() {
                             : isNext
                               ? dashboardData.mapTheme.next
                               : "border-slate-100 bg-slate-50 text-slate-400"
-                      }`}
+                      } ${world.route && world.status !== "locked" ? "cursor-pointer transition hover:-translate-y-0.5" : "cursor-default"}`}
                     >
                       <span
                         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
@@ -466,7 +479,7 @@ export function KidDashboard() {
                           Current
                         </span>
                       )}
-                    </div>
+                    </button>
                     {index < dashboardData.journey.length - 1 && (
                       <span
                         className={`h-0 w-5 shrink-0 border-t-2 border-dashed sm:w-7 ${dashboardData.mapTheme.connector}`}

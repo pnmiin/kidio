@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { RotateCcw, ChevronLeft, ChevronRight, Star, Volume2 } from 'lucide-react';
 import { KidioPageHeader } from '../../components/KidioPageHeader';
@@ -887,6 +887,12 @@ const letters = [
 
 export function TraceLetterGame() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromLearningJourney = Boolean(
+    (location.state as { fromLearningJourney?: boolean } | null)
+      ?.fromLearningJourney,
+  );
+  const backTo = fromLearningJourney ? '/learning-map' : '/kid-dashboard';
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
   const [currentStrokeIndex, setCurrentStrokeIndex] = useState(0);
@@ -1225,7 +1231,7 @@ export function TraceLetterGame() {
       <div className="max-w-2xl mx-auto">
         <KidioPageHeader
           backLabel="Back"
-          backTo="/kid-dashboard"
+          backTo={backTo}
           title={
             <motion.div
               initial={{ opacity: 0, y: -20 }}
