@@ -14,6 +14,10 @@ import {
 } from "../data/animalData";
 import { submitGameProgress } from "../utils/gameProgress";
 import { getLessonsByTopic } from "../services/lessonApi";
+import { getVocabularyByLesson, VocabularyResponse } from "../services/vocabularyApi";
+import { submitPronunciation, PronunciationScoreResponse } from "../services/pronunciationApi";
+import { useVoiceRecorder } from "../utils/useVoiceRecorder";
+import { Loader2, Square } from "lucide-react";
 
 type FlowStep = "intro" | "learn" | "game" | "complete";
 
@@ -511,9 +515,90 @@ export function AnimalGroupPage() {
     () => (group ? getAnimalsByGroup(group.id as AnimalGroupId) : []),
     [group],
   );
+  
   const [step, setStep] = useState<FlowStep>("intro");
   const [learnIndex, setLearnIndex] = useState(0);
   const [sayMessage, setSayMessage] = useState("");
+
+  const [topicLessons, setTopicLessons] = useState<any[]>([]);
+  const [targetLessonId, setTargetLessonId] = useState<string | undefined>();
+  const [lessonVocabs, setLessonVocabs] = useState<VocabularyResponse[]>([]);
+  
+  // Voice Recording States
+  const { isRecording, audioBlob, startRecording, stopRecording, clearAudio } = useVoiceRecorder();
+  const [isSubmittingAudio, setIsSubmittingAudio] = useState(false);
+  const [lastScore, setLastScore] = useState<PronunciationScoreResponse | null>(null);
+  const [startTime] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    const topicId = localStorage.getItem("currentTopicId");
+    if (topicId) {
+      getLessonsByTopic(topicId, 1, 10).then((res) => {
+        if (res.success && res.data) {
+          const lessons = res.data.items.sort((a: any, b: any) => a.orderIndex - b.orderIndex);
+          setTopicLessons(lessons);
+          
+          if (group) {
+            const groupIndex = animalGroups.findIndex((g) => g.id === group.id);
+            if (groupIndex >= 0 && lessons[groupIndex]) {
+              const tId = lessons[groupIndex].id;
+              setTargetLessonId(tId);
+              
+              // Fetch vocabularies for this lesson
+              getVocabularyByLesson(tId, 1, 50).then(vRes => {
+                if (vRes.success && vRes.data) {
+                  setLessonVocabs(vRes.data.items);
+                }
+              });
+            }
+          }
+        }
+      });
+    }
+  }, [group]);
+
+  const currentAnimal = animals[learnIndex];
+  
+  // Submit audio when blob is ready
+  useEffect(() => {
+    const submitAudio = async () => {
+      if (audioBlob && currentAnimal) {
+        setIsSubmittingAudio(true);
+        try {
+          const childId = localStorage.getItem('currentKidId');
+          if (!childId) {
+            setSayMessage("Please login first!");
+            return;
+          }
+          
+          const vocab = lessonVocabs.find(v => v.word.toLowerCase() === currentAnimal.word.toLowerCase());
+          if (!vocab) {
+            setSayMessage("Oops! Word not found in database.");
+            return;
+          }
+          
+          const response = await submitPronunciation(childId, vocab.id, audioBlob, targetLessonId);
+          
+          if (response.success && response.data) {
+            setLastScore(response.data);
+            if (response.data.isPassed) {
+              setSayMessage(`Great! ${response.data.overallScore}%`);
+            } else {
+              setSayMessage(`Try again! ${response.data.overallScore}%`);
+            }
+          }
+        } catch (error: any) {
+          console.error("Failed to submit audio", error);
+          const errorMsg = error.response?.data?.message || error.message || "recording";
+          setSayMessage("Error " + errorMsg);
+        } finally {
+          setIsSubmittingAudio(false);
+          clearAudio();
+        }
+      }
+    };
+    submitAudio();
+  }, [audioBlob, currentAnimal, lessonVocabs, targetLessonId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!group) {
     return (
@@ -532,33 +617,20 @@ export function AnimalGroupPage() {
     );
   }
 
-  const [topicLessons, setTopicLessons] = useState<any[]>([]);
-
-  useEffect(() => {
-    const topicId = localStorage.getItem("currentTopicId");
-    if (topicId) {
-      getLessonsByTopic(topicId, 1, 10).then((res) => {
-        if (res.success && res.data) {
-          setTopicLessons(res.data.items.sort((a: any, b: any) => a.orderIndex - b.orderIndex));
-        }
-      });
-    }
-  }, []);
-
-  const currentAnimal = animals[learnIndex];
-  const [startTime] = useState<number>(() => Date.now());
   const finishGroup = () => {
     saveAnimalGroupCompleted(group.id);
     const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
     localStorage.setItem("currentKidStars", (currentStars + 3).toString());
 
-    let targetLessonId = undefined;
-    const groupIndex = animalGroups.findIndex((g) => g.id === group.id);
-    if (groupIndex >= 0 && topicLessons[groupIndex]) {
-      targetLessonId = topicLessons[groupIndex].id;
+    let tId = targetLessonId;
+    if (!tId) {
+      const groupIndex = animalGroups.findIndex((g) => g.id === group.id);
+      if (groupIndex >= 0 && topicLessons[groupIndex]) {
+        tId = topicLessons[groupIndex].id;
+      }
     }
 
-    submitGameProgress(100, startTime, targetLessonId);
+    submitGameProgress(100, startTime, tId);
     setStep("complete");
   };
 
@@ -647,7 +719,7 @@ export function AnimalGroupPage() {
                   {currentAnimal.sentence}
                 </p>
               </div>
-              {sayMessage ? <Feedback text={sayMessage} correct /> : null}
+              {sayMessage ? <Feedback text={sayMessage} correct={sayMessage.startsWith("Great")} /> : null}
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 <button
                   type="button"
@@ -659,14 +731,38 @@ export function AnimalGroupPage() {
                 </button>
                 <button
                   type="button"
+                  disabled={isSubmittingAudio}
                   onClick={() => {
-                    setSayMessage("Great speaking!");
-                    window.setTimeout(() => setSayMessage(""), 1000);
+                    if (isRecording) {
+                      stopRecording();
+                    } else {
+                      startRecording();
+                    }
                   }}
-                  className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-violet-500 px-6 py-3 text-lg font-black text-white shadow-md"
+                  className={`inline-flex min-h-14 items-center justify-center gap-2 rounded-full px-6 py-3 text-lg font-black text-white shadow-md transition-all ${
+                    isSubmittingAudio
+                      ? "bg-gray-400 cursor-wait"
+                      : isRecording
+                      ? "bg-rose-500 animate-pulse shadow-[0_0_20px_rgba(244,63,94,0.5)]"
+                      : "bg-violet-500 hover:bg-violet-600 shadow-violet-200"
+                  }`}
                 >
-                  <Mic className="h-5 w-5" />
-                  Say it
+                  {isSubmittingAudio ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Wait
+                    </>
+                  ) : isRecording ? (
+                    <>
+                      <Square className="h-5 w-5 fill-white" />
+                      Stop
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="h-5 w-5" />
+                      Say it
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -675,6 +771,9 @@ export function AnimalGroupPage() {
                       setStep("game");
                     } else {
                       setLearnIndex((value) => value + 1);
+                      setLastScore(null);
+                      setSayMessage("");
+                      clearAudio();
                     }
                   }}
                   className="min-h-14 rounded-full bg-emerald-500 px-6 py-3 text-lg font-black text-white shadow-md"
@@ -682,6 +781,30 @@ export function AnimalGroupPage() {
                   {learnIndex === animals.length - 1 ? "Play Game" : "Next"}
                 </button>
               </div>
+
+              {/* Score Display Details */}
+              {lastScore && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-6 mx-auto max-w-sm rounded-2xl bg-white p-4 shadow-sm border border-slate-100"
+                >
+                  <div className="grid grid-cols-3 gap-2 text-sm text-center">
+                    <div>
+                      <div className="text-slate-400 text-xs font-bold uppercase">Accuracy</div>
+                      <div className="text-slate-700 font-black">{lastScore.accuracyScore}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 text-xs font-bold uppercase">Fluency</div>
+                      <div className="text-slate-700 font-black">{lastScore.fluencyScore}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 text-xs font-bold uppercase">Completeness</div>
+                      <div className="text-slate-700 font-black">{lastScore.completenessScore}</div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </section>
           ) : null}
 

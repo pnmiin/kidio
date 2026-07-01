@@ -113,6 +113,10 @@ export async function apiRequest<T>(
     headers: {},
   };
   
+  if (body instanceof FormData) {
+    config.headers!["Content-Type"] = "multipart/form-data";
+  }
+  
   if (!auth) {
     // Custom header flag to skip auth in the interceptor
     config.headers!["X-Skip-Auth"] = "true"; 
