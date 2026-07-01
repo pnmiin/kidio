@@ -96,12 +96,15 @@ export function LearningJourneyPage() {
       if (res.success && res.data?.items.length) {
         const lesson = res.data.items[0];
         localStorage.setItem("currentLessonId", lesson.id);
+        localStorage.setItem("currentTopicId", topicId);
         if (lesson.contentJson) {
           try {
-            const routeData = JSON.parse(lesson.contentJson);
-            if (routeData.route) route = routeData.route;
+            const content = JSON.parse(lesson.contentJson);
+            if (content.route) {
+              route = content.route;
+            }
           } catch (e) {
-            console.error("Failed to parse contentJson", e);
+            console.error("Failed to parse lesson contentJson", e);
           }
         }
       } else {

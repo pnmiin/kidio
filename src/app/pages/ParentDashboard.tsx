@@ -9,16 +9,19 @@ import {
   ChevronRight,
   Clock3,
   Gamepad2,
+  KeyRound,
   Languages,
   Link,
   Loader2,
-  LogOut,
   MessageCircle,
   Plus,
+  Settings,
   Repeat2,
   Sparkles,
   TrendingUp,
   User,
+  Star,
+  Play,
 } from 'lucide-react';
 import {
   CartesianGrid,
@@ -32,39 +35,10 @@ import {
 import { PageBackground } from '../../components/PageBackground';
 import { KidioPageHeader } from '../../components/KidioPageHeader';
 import { getParentDashboardOverview, ParentDashboardChildItemResponse } from '../services/dashboardApi';
-import { logoutParent } from '../services/authApi';
+import { getChildProgressSummary, getRecentActivities, TopicProgressItem, ProgressResponse } from '../services/progressApi';
 import { createChildProfile } from '../services/childApi';
+import { logoutParent } from '../services/authApi';
 
-const weeklyData = [
-  { day: 'Mon', minutes: 25 },
-  { day: 'Tue', minutes: 30 },
-  { day: 'Wed', minutes: 20 },
-  { day: 'Thu', minutes: 35 },
-  { day: 'Fri', minutes: 40 },
-  { day: 'Sat', minutes: 45 },
-  { day: 'Sun', minutes: 30 },
-];
-
-const achievements = [
-  { badge: '🏆', title: 'Perfect Week', detail: 'All weekly goals completed' },
-  { badge: '⭐', title: 'Animal Expert', detail: 'Mastered the animal topic' },
-  { badge: '🎯', title: '7-Day Streak', detail: 'Learned every day this week' },
-  { badge: '🌟', title: 'Clear Speaker', detail: '50 correct pronunciations' },
-];
-
-const skillsData = [
-  { skill: 'Vocabulary', progress: 85, status: 'Excellent', color: 'bg-sky-400', statusColor: 'bg-sky-50 text-sky-700' },
-  { skill: 'Listening', progress: 90, status: 'Excellent', color: 'bg-amber-400', statusColor: 'bg-amber-50 text-amber-700' },
-  { skill: 'Pronunciation', progress: 70, status: 'Strong', color: 'bg-emerald-400', statusColor: 'bg-emerald-50 text-emerald-700' },
-  { skill: 'Reading', progress: 65, status: 'Improving', color: 'bg-violet-400', statusColor: 'bg-violet-50 text-violet-700' },
-  { skill: 'Speaking', progress: 55, status: 'Needs practice', color: 'bg-pink-400', statusColor: 'bg-pink-50 text-pink-700' },
-];
-
-const recentLearning = [
-  { lesson: 'Animals in the Zoo', time: '15 minutes ago', score: 95 },
-  { lesson: 'Family Members', time: '2 hours ago', score: 88 },
-  { lesson: 'Colors & Shapes', time: 'Yesterday', score: 92 },
-];
 
 interface Kid {
   kidId?: string;
@@ -125,6 +99,10 @@ export function ParentDashboard() {
   const [kidActionStatus, setKidActionStatus] = useState<'success' | 'error' | null>(null);
   const [isCreatingKid, setIsCreatingKid] = useState(false);
 
+  const [weeklyChartData, setWeeklyChartData] = useState<{ label: string; minutes: number }[]>([]);
+  const [topicProgresses, setTopicProgresses] = useState<TopicProgressItem[]>([]);
+  const [recentActivities, setRecentActivities] = useState<ProgressResponse[]>([]);
+  const [achievements, setAchievements] = useState<{ badge: string; title: string; detail: string }[]>([]);
   const ageOptions = ['5', '6', '7', '8', '9', '10'];
   const experienceOptions = [
     { value: 'No' as const, description: 'I am brand new', color: 'border-sky-200 bg-sky-50' },
@@ -206,9 +184,48 @@ export function ParentDashboard() {
         setKids(apiKids);
         setSelectedKid(activeKid);
         setShowLinkForm(!activeKid);
+
+        // Build weekly chart data from API (last 4 weeks → most recent first)
+        if (dashboardData.weeklyProgress?.length) {
+          const chart = dashboardData.weeklyProgress.map((w, index) => {
+            return {
+              label: `Week ${index + 1}`,
+              minutes: Math.round(w.timeSpentSeconds / 60),
+            };
+          });
+          setWeeklyChartData(chart);
+        } else {
+          // Fallback
+          setWeeklyChartData(
+            ['Week 1', 'Week 2', 'Week 3', 'Week 4'].map((w) => ({ label: w, minutes: 0 })),
+          );
+        }
+
+        // Build achievements list from kid stats
+        const kidForAchievements = activeKid;
+        if (kidForAchievements) {
+          const earned: { badge: string; title: string; detail: string }[] = [];
+          if (kidForAchievements.stats.completedLessons >= 1) {
+            earned.push({ badge: '📚', title: 'First Lesson!', detail: `${kidForAchievements.stats.completedLessons} lesson(s) completed` });
+          }
+          if (kidForAchievements.stats.badges >= 5) {
+            earned.push({ badge: '⭐', title: 'Star Collector', detail: `${kidForAchievements.stats.badges} stars earned` });
+          }
+          if (kidForAchievements.stats.streak >= 3) {
+            earned.push({ badge: '🔥', title: `${kidForAchievements.stats.streak}-Day Streak`, detail: 'Keeps learning every day!' });
+          }
+          if (kidForAchievements.stats.learningTime >= 60) {
+            earned.push({ badge: '🕐', title: 'Dedicated Learner', detail: `${kidForAchievements.stats.learningTime} minutes of learning` });
+          }
+          if (earned.length === 0) {
+            earned.push({ badge: '🌱', title: 'Just Getting Started', detail: 'Complete your first lesson!' });
+          }
+          setAchievements(earned);
+        }
+
       } catch (error) {
-        console.error('Error loading backend children:', error);
-        if (isMounted) loadLocalParent();
+        console.error('Error loading API dashboard data:', error);
+        loadLocalParent();
       }
     };
 
@@ -218,6 +235,42 @@ export function ParentDashboard() {
       isMounted = false;
     };
   }, []);
+
+  // Fetch child-specific progress and activities whenever selectedKid changes
+  useEffect(() => {
+    let isMounted = true;
+    if (!selectedKid) {
+      setTopicProgresses([]);
+      setRecentActivities([]);
+      return;
+    }
+
+    const loadChildData = async () => {
+      try {
+        const [summaryRes, activitiesRes] = await Promise.all([
+          getChildProgressSummary(selectedKid.kidId),
+          getRecentActivities(selectedKid.kidId, 1, 5)
+        ]);
+
+        if (isMounted) {
+          if (summaryRes.success && summaryRes.data) {
+            setTopicProgresses(summaryRes.data.topicProgresses || []);
+          }
+          if (activitiesRes.success && activitiesRes.data) {
+            setRecentActivities(activitiesRes.data.items || []);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load child specific progress', error);
+      }
+    };
+
+    loadChildData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedKid]);
 
   const handleCreateChild = async () => {
     const name = kidNameInput.trim();
@@ -323,8 +376,8 @@ export function ParentDashboard() {
     document.getElementById('weekly-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('currentParent');
+  const handleLogout = async () => {
+    await logoutParent(); // This removes accessToken, refreshToken, currentUser, etc.
     navigate('/');
   };
 
@@ -344,11 +397,11 @@ export function ParentDashboard() {
             <div className="flex items-center gap-2 rounded-full border border-white/80 bg-white/85 p-2 pl-4 shadow-sm">
               <span className="text-sm text-gray-600">Hi, <strong>{parentName}</strong></span>
               <button
-                onClick={handleLogout}
-                aria-label="Log out"
-                className="rounded-full p-2 text-gray-500 transition hover:bg-rose-50 hover:text-rose-500"
+                onClick={() => navigate('/parent-profile')}
+                aria-label="Parent Profile & Settings"
+                className="rounded-full p-2 text-gray-500 transition hover:bg-sky-50 hover:text-sky-500"
               >
-                <LogOut className="h-5 w-5" />
+                <Settings className="h-5 w-5" />
               </button>
             </div>
           }
@@ -371,15 +424,18 @@ export function ParentDashboard() {
                       <h2 className="text-2xl font-bold text-gray-950">{selectedKid.name}</h2>
                       <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Active</span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {selectedKid.age} years old · {selectedKid.kidId}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2 text-sm">
-                      <span className="rounded-full bg-sky-50 px-3 py-1 font-semibold text-sky-700">
+                    <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-700">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {selectedKid.age} years old
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 font-semibold text-sky-700">
+                        <TrendingUp className="h-3.5 w-3.5" />
                         Level: {selectedKid.level || 'Starter A1'}
                       </span>
-                      <span className="rounded-full bg-violet-50 px-3 py-1 font-semibold text-violet-700">
-                        Now learning: {selectedKid.topic || 'Animals & Nature'}
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1 font-semibold text-violet-700">
+                        <BookOpen className="h-3.5 w-3.5" />
+                        Topic: {selectedKid.topic || 'Animals & Nature'}
                       </span>
                     </div>
                   </div>
@@ -398,12 +454,6 @@ export function ParentDashboard() {
                   >
                     <Plus className="h-4 w-4" />
                     Add Child
-                  </button>
-                  <button
-                    onClick={openLinkForm}
-                    className="rounded-full px-4 py-2.5 text-sm font-bold text-violet-600 transition hover:bg-violet-50"
-                  >
-                    Link another child
                   </button>
                 </div>
               </div>
@@ -427,7 +477,7 @@ export function ParentDashboard() {
                         </span>
                         <span>
                           <span className="block font-bold text-gray-900">{kid.name}</span>
-                          <span className="text-xs text-gray-500">{kid.kidId}</span>
+                          <span className="text-xs text-gray-500">{kid.age} years old</span>
                         </span>
                       </button>
                     ))}
@@ -672,9 +722,9 @@ export function ParentDashboard() {
                 </span>
               </div>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={weeklyData} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+                <LineChart data={weeklyChartData.length ? weeklyChartData : [{ label: '-', minutes: 0 }]} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="4 6" stroke="#e8eef3" vertical={false} />
-                  <XAxis dataKey="day" stroke="#64748b" tickLine={false} axisLine={false} />
+                  <XAxis dataKey="label" stroke="#64748b" tickLine={false} axisLine={false} />
                   <YAxis stroke="#64748b" tickLine={false} axisLine={false} />
                   <Tooltip
                     contentStyle={{
@@ -693,38 +743,54 @@ export function ParentDashboard() {
                     activeDot={{ r: 7 }}
                   />
                 </LineChart>
-              </ResponsiveContainer>
-            </motion.section>
-
-            <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              <motion.section
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`${cardClass} p-5 sm:p-6`}
-              >
-                <div className="mb-5">
-                  <h3 className="text-2xl font-bold text-gray-950">Recent Learning</h3>
-                  <p className="mt-1 text-sm text-gray-500">The latest lessons your child completed.</p>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  {recentLearning.map((activity) => (
-                    <div key={activity.lesson} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                          <BookOpen className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="truncate font-bold text-gray-900">{activity.lesson}</h4>
-                          <p className="text-sm text-gray-500">{activity.time}</p>
-                        </div>
-                      </div>
-                      <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-700">
-                        {activity.score}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                </ResponsiveContainer>
               </motion.section>
+
+              <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                <motion.section
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`${cardClass} p-5 sm:p-6`}
+                >
+                  <div className="mb-5">
+                    <h3 className="text-2xl font-bold text-gray-950">Recent Learning</h3>
+                    <p className="mt-1 text-sm text-gray-500">The latest lessons your child completed.</p>
+                  </div>
+                  <div className="space-y-4">
+                    {recentActivities.length === 0 ? (
+                      <div className="py-6 text-center text-sm text-gray-400">
+                        No recent activities found.
+                      </div>
+                    ) : (
+                      recentActivities.map((activity, index) => {
+                        const dt = new Date(activity.createdAt || new Date());
+                        const timeStr = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        return (
+                          <div
+                            key={activity.id || index}
+                            className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 transition-all hover:border-sky-200 hover:shadow-sm"
+                          >
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-500">
+                              {activity.isCompleted ? <BookOpen className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-bold text-gray-900">{activity.lessonTitle}</h4>
+                              <p className="text-sm text-gray-500">{timeStr}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-bold text-sky-600">
+                                {activity.scorePercent}% Score
+                              </div>
+                              <div className="text-xs text-amber-500 font-semibold flex items-center justify-end gap-1">
+                                {activity.starsEarned} <Star className="w-3 h-3 fill-current" />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </motion.section>
 
               <motion.section
                 initial={{ opacity: 0, y: 20 }}
@@ -753,31 +819,57 @@ export function ParentDashboard() {
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`${cardClass} p-5 sm:p-8`}
             >
-              <div className="mb-7">
-                <h3 className="text-2xl font-bold text-gray-950">Skill Progress</h3>
-                <p className="mt-2 text-sm text-gray-500">See what is going well and where a little practice can help.</p>
-              </div>
-              <div className="grid gap-x-10 gap-y-6 lg:grid-cols-2">
-                {skillsData.map((skill, index) => (
-                  <div key={skill.skill}>
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <span className="font-bold text-gray-800">{skill.skill}</span>
-                      <span className={`rounded-full px-3 py-1 text-xs font-bold ${skill.statusColor}`}>
-                        {skill.status}
-                      </span>
-                    </div>
-                    <div className="h-3 overflow-hidden rounded-full bg-gray-100">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${skill.progress}%` }}
-                        transition={{ delay: 0.2 + index * 0.08, duration: 0.7 }}
-                        className={`h-full rounded-full ${skill.color}`}
-                      />
-                    </div>
+              <div className={`p-6 sm:p-8 ${cardClass}`}>
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Topic Progress</h3>
+                    <p className="text-sm text-gray-500">Mastery by subject</p>
                   </div>
-                ))}
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-50 text-sky-500">
+                    <Repeat2 className="h-5 w-5" />
+                  </div>
+                </div>
+
+                {topicProgresses.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                    <p>No topic progress data available yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {topicProgresses.map((topic, index) => {
+                      const colors = [
+                        { bg: 'bg-sky-400', text: 'text-sky-700', box: 'bg-sky-50' },
+                        { bg: 'bg-amber-400', text: 'text-amber-700', box: 'bg-amber-50' },
+                        { bg: 'bg-emerald-400', text: 'text-emerald-700', box: 'bg-emerald-50' },
+                        { bg: 'bg-violet-400', text: 'text-violet-700', box: 'bg-violet-50' },
+                        { bg: 'bg-pink-400', text: 'text-pink-700', box: 'bg-pink-50' },
+                      ];
+                      const colorSet = colors[index % colors.length];
+
+                      return (
+                        <div key={topic.topicId}>
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="font-semibold text-gray-700">{topic.topicName}</span>
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-bold ${colorSet.box} ${colorSet.text}`}
+                            >
+                              {topic.completedLessons}/{topic.totalLessons} Lessons
+                            </span>
+                          </div>
+                          <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${topic.progressPercent}%` }}
+                              transition={{ duration: 1, ease: 'easeOut', delay: index * 0.1 }}
+                              className={`h-full rounded-full ${colorSet.bg}`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div className="mt-7 flex items-start gap-3 rounded-2xl bg-pink-50/70 p-4 text-sm text-gray-700">
                 <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-pink-500" />

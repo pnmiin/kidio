@@ -7,13 +7,15 @@ import { submitProgress } from "../services/progressApi";
  *
  * @param scorePercent  0-100 percent score
  * @param startTime     Date.now() value when the game started (optional, defaults to now)
+ * @param overrideLessonId Optional explicit lesson ID to submit instead of the one in localStorage
  */
 export async function submitGameProgress(
   scorePercent: number,
   startTime: number = Date.now(),
+  overrideLessonId?: string
 ): Promise<void> {
   const childId = localStorage.getItem("currentKidId");
-  const lessonId = localStorage.getItem("currentLessonId");
+  const lessonId = overrideLessonId || localStorage.getItem("currentLessonId");
 
   if (!childId || !lessonId) {
     // Not launched from the learning map – skip silently

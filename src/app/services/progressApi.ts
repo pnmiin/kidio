@@ -61,3 +61,22 @@ export async function getChildProgressSummary(childId: string) {
     method: "GET",
   });
 }
+
+export type PagedResponse<T> = {
+  items: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
+export async function getRecentActivities(childId: string, pageNumber = 1, pageSize = 10) {
+  return apiRequest<PagedResponse<ProgressResponse>>(
+    `/api/Progress/child/${childId}/recent-activities?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+    {
+      method: "GET",
+    }
+  );
+}

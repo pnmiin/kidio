@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { motion } from "motion/react";
 import { useDrag, useDrop } from "react-dnd";
@@ -10,8 +10,10 @@ import {
   getAnimalGroup,
   getAnimalsByGroup,
   saveAnimalGroupCompleted,
+  animalGroups,
 } from "../data/animalData";
 import { submitGameProgress } from "../utils/gameProgress";
+import { getLessonsByTopic } from "../services/lessonApi";
 
 type FlowStep = "intro" | "learn" | "game" | "complete";
 
@@ -530,13 +532,33 @@ export function AnimalGroupPage() {
     );
   }
 
+  const [topicLessons, setTopicLessons] = useState<any[]>([]);
+
+  useEffect(() => {
+    const topicId = localStorage.getItem("currentTopicId");
+    if (topicId) {
+      getLessonsByTopic(topicId, 1, 10).then((res) => {
+        if (res.success && res.data) {
+          setTopicLessons(res.data.items.sort((a: any, b: any) => a.orderIndex - b.orderIndex));
+        }
+      });
+    }
+  }, []);
+
   const currentAnimal = animals[learnIndex];
   const [startTime] = useState<number>(() => Date.now());
   const finishGroup = () => {
     saveAnimalGroupCompleted(group.id);
     const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
     localStorage.setItem("currentKidStars", (currentStars + 3).toString());
-    submitGameProgress(100, startTime);
+
+    let targetLessonId = undefined;
+    const groupIndex = animalGroups.findIndex((g) => g.id === group.id);
+    if (groupIndex >= 0 && topicLessons[groupIndex]) {
+      targetLessonId = topicLessons[groupIndex].id;
+    }
+
+    submitGameProgress(100, startTime, targetLessonId);
     setStep("complete");
   };
 

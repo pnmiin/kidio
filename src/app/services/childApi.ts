@@ -47,3 +47,20 @@ export function getChildren(pageNumber = 1, pageSize = 20) {
     `/api/Child?pageNumber=${pageNumber}&pageSize=${pageSize}`,
   );
 }
+
+export function updateChildProfile(id: string, name: string, age: number, avatarUrl = "") {
+  return apiRequest<ChildResponse>(`/api/Child/${id}`, {
+    method: "PUT",
+    body: {
+      name,
+      age,
+      avatarUrl,
+    },
+  });
+}
+
+export function deleteChildProfile(id: string) {
+  return apiRequest<any>(`/api/Child/${id}`, {
+    method: "DELETE",
+  });
+}

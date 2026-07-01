@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   BookOpen,
@@ -406,6 +407,29 @@ function PricingCard({ plan }: { plan: (typeof pricingPlans)[number] }) {
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState("");
+
+  // Check if user already has a valid session
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    const role = localStorage.getItem("currentUserRole") || "";
+    if (token) {
+      setIsLoggedIn(true);
+      setUserRole(role);
+    }
+  }, []);
+
+  const goToDashboard = () => {
+    const role = localStorage.getItem("currentUserRole") || "";
+    if (role === "admin") {
+      navigate("/admin");
+    } else if (role === "kid") {
+      navigate("/kid-home");
+    } else {
+      navigate("/parent-dashboard");
+    }
+  };
 
   const scrollToSection = (target: string) => {
     if (target === "top") {
@@ -439,19 +463,30 @@ export function LandingPage() {
             </button>
 
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:order-3">
-              <button
-                onClick={() => navigate("/parent-login")}
-                className="inline-flex rounded-[18px] border border-white bg-white px-3 py-2.5 text-xs font-black text-[#0877f2] shadow-[0_12px_26px_rgba(42,119,190,0.12)] transition-colors hover:bg-sky-50 sm:px-6 sm:py-3 sm:text-sm"
-              >
-                Log in
-              </button>
-              <button
-                onClick={() => navigate("/parent-login")}
-                className="inline-flex rounded-[18px] bg-gradient-to-r from-[#1891ff] to-[#006bff] px-3 py-2.5 text-xs font-black text-white shadow-[0_14px_28px_rgba(0,112,255,0.25)] transition-colors hover:from-[#0d85f4] hover:to-[#005ee0] sm:px-6 sm:py-3 sm:text-sm"
-              >
-                <span className="hidden sm:inline">Start Free Trial</span>
-                <span className="sm:hidden">Start</span>
-              </button>
+              {isLoggedIn ? (
+                <button
+                  onClick={goToDashboard}
+                  className="inline-flex rounded-[18px] bg-gradient-to-r from-[#1891ff] to-[#006bff] px-3 py-2.5 text-xs font-black text-white shadow-[0_14px_28px_rgba(0,112,255,0.25)] transition-colors hover:from-[#0d85f4] hover:to-[#005ee0] sm:px-6 sm:py-3 sm:text-sm"
+                >
+                  {userRole === "kid" ? "My Learning" : "My Dashboard"}
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate("/parent-login")}
+                    className="inline-flex rounded-[18px] border border-white bg-white px-3 py-2.5 text-xs font-black text-[#0877f2] shadow-[0_12px_26px_rgba(42,119,190,0.12)] transition-colors hover:bg-sky-50 sm:px-6 sm:py-3 sm:text-sm"
+                  >
+                    Log in
+                  </button>
+                  <button
+                    onClick={() => navigate("/parent-login")}
+                    className="inline-flex rounded-[18px] bg-gradient-to-r from-[#1891ff] to-[#006bff] px-3 py-2.5 text-xs font-black text-white shadow-[0_14px_28px_rgba(0,112,255,0.25)] transition-colors hover:from-[#0d85f4] hover:to-[#005ee0] sm:px-6 sm:py-3 sm:text-sm"
+                  >
+                    <span className="hidden sm:inline">Start Free Trial</span>
+                    <span className="sm:hidden">Start</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 

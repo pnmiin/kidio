@@ -5,7 +5,7 @@ import { useState } from "react";
 import { PageBackground } from "../../components/PageBackground";
 import { KidioPageHeader } from "../../components/KidioPageHeader";
 import { isAdminEmail } from "../utils/adminAuth";
-import { loginParent, registerParent, saveAuthSession } from "../services/authApi";
+import { loginParent, registerParent, saveAuthSession, resendVerification } from "../services/authApi";
 
 export function ParentLogin() {
   const navigate = useNavigate();
@@ -21,6 +21,8 @@ export function ParentLogin() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   const navigateAfterAuth = () => {
     const pendingPlan = sessionStorage.getItem("pendingPlan");
@@ -38,6 +40,7 @@ export function ParentLogin() {
     const normalizedEmail = formData.email.trim().toLowerCase();
     setErrorMessage("");
     setSuccessMessage("");
+    setNeedsVerification(false);
 
     if (isAdminEmail(normalizedEmail)) {
       localStorage.setItem("currentParent", normalizedEmail);
@@ -80,9 +83,31 @@ export function ParentLogin() {
       setIsLogin(true);
       setSuccessMessage(registerResponse.message || "Registration successful! Please check your email to verify your account.");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Something went wrong. Please try again.");
+      const msg = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      setErrorMessage(msg);
+      if (msg.toLowerCase().includes("verif") || msg.toLowerCase().includes("activat")) {
+        setNeedsVerification(true);
+      }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setIsResending(true);
+    setErrorMessage("");
+    try {
+      const response = await resendVerification(formData.email.trim().toLowerCase());
+      if (response.success) {
+        setSuccessMessage(response.message || "Verification email resent successfully. Please check your inbox.");
+        setNeedsVerification(false);
+      } else {
+        throw new Error(response.message || "Failed to resend verification email.");
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "An error occurred.");
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -166,6 +191,17 @@ export function ParentLogin() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {isLogin && (
+                <div className="mt-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/forgot-password")}
+                    className="text-sm text-[#2BADEE] hover:underline font-semibold"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+              )}
             </div>
 
             {!isLogin && (
@@ -211,6 +247,18 @@ export function ParentLogin() {
           {errorMessage ? (
             <div className="mt-4 rounded-2xl bg-amber-100 px-4 py-3 text-center font-bold text-amber-700">
               {errorMessage}
+              {needsVerification && (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={isResending}
+                    className="px-4 py-2 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded-lg text-sm transition-colors disabled:opacity-50"
+                  >
+                    {isResending ? "Sending..." : "Resend Verification Email"}
+                  </button>
+                </div>
+              )}
             </div>
           ) : null}
 

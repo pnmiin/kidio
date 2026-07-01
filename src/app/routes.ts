@@ -10,6 +10,10 @@ import { ParentDashboard } from "./pages/ParentDashboard";
 import { Checkout } from "./pages/Checkout";
 import { PaymentSuccess } from "./pages/PaymentSuccess";
 import { CustomerSupport } from "./pages/CustomerSupport";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
+import { VerifyEmail } from "./pages/VerifyEmail";
+import { ParentProfile } from "./pages/ParentProfile";
 import { TraceLetterGame } from "./pages/TraceLetterGame";
 import { ColorGamesPage } from "./pages/ColorGamesPage";
 import { ColorHuntGame } from "./pages/ColorHuntGame";
@@ -43,6 +47,22 @@ export const router = createBrowserRouter([
     Component: ParentLogin,
   },
   {
+    path: "/forgot-password",
+    Component: ForgotPassword,
+  },
+  {
+    path: "/reset-password",
+    Component: ResetPassword,
+  },
+  {
+    path: "/verify-email",
+    Component: VerifyEmail,
+  },
+  {
+    path: "/parent-profile",
+    Component: ParentProfile,
+  },
+  {
     path: "/kid-login",
     Component: KidLogin,
   },
@@ -67,7 +87,7 @@ export const router = createBrowserRouter([
     Component: LearningJourneyPage,
   },
   {
-    path: "/video-lesson",
+    path: "/video-lesson/:level?",
     Component: VideoLesson,
   },
   {
@@ -91,7 +111,7 @@ export const router = createBrowserRouter([
     Component: CustomerSupport,
   },
   {
-    path: "/trace-letter",
+    path: "/trace-letter/:level?",
     Component: TraceLetterGame,
   },
   {
@@ -119,11 +139,11 @@ export const router = createBrowserRouter([
     Component: AnimalGroupPage,
   },
   {
-    path: "/my-home-game",
+    path: "/my-home-game/:level?",
     Component: MyHomeGame,
   },
   {
-    path: "/adventure/body-parts",
+    path: "/adventure/body-parts/:level?",
     Component: BodyPartsAdventurePage,
   },
   {
