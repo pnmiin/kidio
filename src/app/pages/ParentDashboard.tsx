@@ -35,7 +35,7 @@ import {
 import { PageBackground } from '../../components/PageBackground';
 import { KidioPageHeader } from '../../components/KidioPageHeader';
 import { getParentDashboardOverview, ParentDashboardChildItemResponse } from '../services/dashboardApi';
-import { getChildProgressSummary, getRecentActivities, TopicProgressItem, ProgressResponse } from '../services/progressApi';
+import { getChildProgressSummary, getRecentActivities, getChildAchievements, TopicProgressItem, ProgressResponse } from '../services/progressApi';
 import { createChildProfile } from '../services/childApi';
 import { logoutParent } from '../services/authApi';
 
@@ -201,27 +201,7 @@ export function ParentDashboard() {
           );
         }
 
-        // Build achievements list from kid stats
-        const kidForAchievements = activeKid;
-        if (kidForAchievements) {
-          const earned: { badge: string; title: string; detail: string }[] = [];
-          if (kidForAchievements.stats.completedLessons >= 1) {
-            earned.push({ badge: '📚', title: 'First Lesson!', detail: `${kidForAchievements.stats.completedLessons} lesson(s) completed` });
-          }
-          if (kidForAchievements.stats.badges >= 5) {
-            earned.push({ badge: '⭐', title: 'Star Collector', detail: `${kidForAchievements.stats.badges} stars earned` });
-          }
-          if (kidForAchievements.stats.streak >= 3) {
-            earned.push({ badge: '🔥', title: `${kidForAchievements.stats.streak}-Day Streak`, detail: 'Keeps learning every day!' });
-          }
-          if (kidForAchievements.stats.learningTime >= 60) {
-            earned.push({ badge: '🕐', title: 'Dedicated Learner', detail: `${kidForAchievements.stats.learningTime} minutes of learning` });
-          }
-          if (earned.length === 0) {
-            earned.push({ badge: '🌱', title: 'Just Getting Started', detail: 'Complete your first lesson!' });
-          }
-          setAchievements(earned);
-        }
+
 
       } catch (error) {
         console.error('Error loading API dashboard data:', error);
@@ -247,9 +227,10 @@ export function ParentDashboard() {
 
     const loadChildData = async () => {
       try {
-        const [summaryRes, activitiesRes] = await Promise.all([
+        const [summaryRes, activitiesRes, achievementsRes] = await Promise.all([
           getChildProgressSummary(selectedKid.kidId),
-          getRecentActivities(selectedKid.kidId, 1, 5)
+          getRecentActivities(selectedKid.kidId, 1, 5),
+          getChildAchievements(selectedKid.kidId, 1, 10)
         ]);
 
         if (isMounted) {
@@ -258,6 +239,20 @@ export function ParentDashboard() {
           }
           if (activitiesRes.success && activitiesRes.data) {
             setRecentActivities(activitiesRes.data.items || []);
+          }
+          if (achievementsRes.success && achievementsRes.data) {
+            const items = achievementsRes.data.items || [];
+            if (items.length > 0) {
+              setAchievements(items.map(a => ({
+                badge: a.iconUrl || '🏆',
+                title: a.name,
+                detail: a.description
+              })));
+            } else {
+              setAchievements([{ badge: '🌱', title: 'Just Getting Started', detail: 'Complete your first lesson!' }]);
+            }
+          } else {
+            setAchievements([{ badge: '🌱', title: 'Just Getting Started', detail: 'Complete your first lesson!' }]);
           }
         }
       } catch (error) {

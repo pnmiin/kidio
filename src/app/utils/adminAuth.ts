@@ -5,9 +5,8 @@ export function isAdminEmail(email: string) {
 }
 
 export function isAdminSession() {
-  const email = localStorage.getItem("currentParent") || "";
   const role = localStorage.getItem("currentUserRole");
-  return isAdminEmail(email) && role === "admin";
+  return role === "admin" || role === "Admin";
 }
 
 export function clearAdminSession() {

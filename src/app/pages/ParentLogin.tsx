@@ -5,7 +5,8 @@ import { useState } from "react";
 import { PageBackground } from "../../components/PageBackground";
 import { KidioPageHeader } from "../../components/KidioPageHeader";
 import { isAdminEmail } from "../utils/adminAuth";
-import { loginParent, registerParent, saveAuthSession, resendVerification } from "../services/authApi";
+import { loginParent, registerParent, saveAuthSession, resendVerification, loginGoogle } from "../services/authApi";
+import { GoogleLogin } from "@react-oauth/google";
 
 export function ParentLogin() {
   const navigate = useNavigate();
@@ -108,6 +109,31 @@ export function ParentLogin() {
       setErrorMessage(error instanceof Error ? error.message : "An error occurred.");
     } finally {
       setIsResending(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      setIsSubmitting(true);
+      setErrorMessage("");
+      const res = await loginGoogle(credentialResponse.credential);
+      if (res.success && res.data?.accessToken) {
+        saveAuthSession(res.data);
+        localStorage.setItem("currentUserRole", res.data.user?.role || "parent");
+        
+        if (res.data.user?.role === "admin" || res.data.user?.role === "Admin") {
+          navigate("/admin");
+          return;
+        }
+
+        navigateAfterAuth();
+      } else {
+        throw new Error(res.message || "Google login failed.");
+      }
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Google login failed.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -243,6 +269,31 @@ export function ParentLogin() {
               {isSubmitting ? "Logging in..." : isLogin ? "Login" : "Sign Up"}
             </motion.button>
           </form>
+
+          {isLogin && (
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => {
+                    setErrorMessage("Google Login Failed");
+                  }}
+                  useOneTap
+                  theme="outline"
+                  shape="pill"
+                />
+              </div>
+            </div>
+          )}
 
           {errorMessage ? (
             <div className="mt-4 rounded-2xl bg-amber-100 px-4 py-3 text-center font-bold text-amber-700">

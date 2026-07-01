@@ -74,6 +74,15 @@ export async function getCurrentUser() {
 }
 
 export async function logoutParent() {
+  try {
+    await apiRequest<any>("/api/Auth/logout", {
+      method: "POST",
+      auth: true,
+    });
+  } catch (error) {
+    console.warn("Failed to logout from backend", error);
+  }
+
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("accessTokenExpiry");
@@ -94,12 +103,6 @@ export async function logoutParent() {
   localStorage.removeItem('currentKidPath');
   localStorage.removeItem('currentKidPathLabel');
   localStorage.removeItem('currentKidCurrentTopic');
-  
-  // Call backend logout asynchronously (we don't wait/block on this if it fails)
-  return apiRequest<{}>("/api/Auth/logout", {
-    method: "POST",
-    auth: true,
-  }).catch(() => null);
 }
 
 // ----------------------------------------------------

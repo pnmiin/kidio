@@ -1,4 +1,5 @@
 import { apiRequest } from "./apiClient";
+import type { PagedResponse } from "./childApi";
 
 export type SubmitProgressRequest = {
   childId: string;
@@ -75,6 +76,15 @@ export type PagedResponse<T> = {
 export async function getRecentActivities(childId: string, pageNumber = 1, pageSize = 10) {
   return apiRequest<PagedResponse<ProgressResponse>>(
     `/api/Progress/child/${childId}/recent-activities?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+    {
+      method: "GET",
+    }
+  );
+}
+
+export async function getChildAchievements(childId: string, pageNumber = 1, pageSize = 10) {
+  return apiRequest<PagedResponse<AchievementResponse>>(
+    `/api/Achievement/child/${childId}?pageNumber=${pageNumber}&pageSize=${pageSize}`,
     {
       method: "GET",
     }
