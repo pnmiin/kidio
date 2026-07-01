@@ -11,6 +11,7 @@ import {
   getAnimalsByGroup,
   saveAnimalGroupCompleted,
 } from "../data/animalData";
+import { submitGameProgress } from "../utils/gameProgress";
 
 type FlowStep = "intro" | "learn" | "game" | "complete";
 
@@ -530,10 +531,12 @@ export function AnimalGroupPage() {
   }
 
   const currentAnimal = animals[learnIndex];
+  const [startTime] = useState<number>(() => Date.now());
   const finishGroup = () => {
     saveAnimalGroupCompleted(group.id);
     const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
     localStorage.setItem("currentKidStars", (currentStars + 3).toString());
+    submitGameProgress(100, startTime);
     setStep("complete");
   };
 

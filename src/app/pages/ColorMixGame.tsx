@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { ArrowRight, Palette, Play, RotateCcw, Star } from "lucide-react";
 import { KidioPageHeader } from "../../components/KidioPageHeader";
+import { submitGameProgress } from "../utils/gameProgress";
 
 type MixCombo = {
   colors: [string, string];
@@ -69,6 +70,7 @@ export function ColorMixGame() {
   const [bucketShaking, setBucketShaking] = useState(false);
   const [feedback, setFeedback] = useState("");
   const targetCombination = colorCombinations[currentMixIndex];
+  const [startTime] = useState<number>(() => Date.now());
   const distractorColor =
     mixColors.find((color) => !targetCombination.colors.includes(color.name)) ?? mixColors[0];
   const availableColors = mixColors.filter((color) =>
@@ -113,6 +115,7 @@ export function ColorMixGame() {
           if (nextValue === colorCombinations.length && value !== colorCombinations.length) {
             const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
             localStorage.setItem("currentKidStars", (currentStars + 3).toString());
+            submitGameProgress(100, startTime);
           }
           return nextValue;
         });

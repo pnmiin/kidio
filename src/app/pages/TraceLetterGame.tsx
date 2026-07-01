@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { RotateCcw, ChevronLeft, ChevronRight, Star, Volume2 } from 'lucide-react';
 import { KidioPageHeader } from '../../components/KidioPageHeader';
 import { advanceJourney } from '../utils/journeyProgress';
+import { submitGameProgress } from '../utils/gameProgress';
 
 // Letter path data with multiple strokes for each letter (A-Z)
 interface Stroke {
@@ -1213,6 +1214,7 @@ export function TraceLetterGame() {
       advanceJourney('starter', 5);
       const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
       localStorage.setItem("currentKidStars", (currentStars + 3).toString());
+      submitGameProgress(100);
       navigate('/kid-dashboard');
       return;
     }

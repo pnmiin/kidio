@@ -32,6 +32,7 @@ import {
   saveBigNumberCityResult,
 } from "../utils/numberLandProgress";
 import { speak, stopSpeech } from "../utils/speech";
+import { submitGameProgress } from "../utils/gameProgress";
 
 type CityScreen = "welcome" | "learn" | "build" | "find" | "complete";
 type BuildPracticeQuestion = BigNumberQuestion & {
@@ -186,6 +187,7 @@ export function BigNumberCityGame() {
   const [correctFindChoice, setCorrectFindChoice] = useState<number | null>(null);
   const lastLearnSpeechRef = useRef<{ text: string; time: number } | null>(null);
   const lastAnswerSpeechRef = useRef<{ text: string; time: number } | null>(null);
+  const startTime = useState<number>(() => Date.now())[0];
 
   const learnExample = patternExamples[learnIndex];
   const buildQuestion = buildPractice[buildIndex];
@@ -310,7 +312,7 @@ export function BigNumberCityGame() {
     setScreen("welcome");
   };
 
-  const goToNextFindQuestion = () => {
+  const goToNextFindQuestion = async () => {
     stopSpeech();
 
     if (findIndex === findPractice.length - 1) {
@@ -319,6 +321,9 @@ export function BigNumberCityGame() {
       const earnedStars = getBigNumberCityStars(findScore);
       const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
       localStorage.setItem("currentKidStars", (currentStars + earnedStars).toString());
+
+      const scorePercent = Math.round((findScore / findPractice.length) * 100);
+      await submitGameProgress(scorePercent, startTime);
 
       setScreen("complete");
       return;

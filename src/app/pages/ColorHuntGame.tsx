@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { Check, Headphones, Star } from "lucide-react";
 import { KidioPageHeader } from "../../components/KidioPageHeader";
+import { submitGameProgress } from "../utils/gameProgress";
 
 type HuntColor = "Red" | "Blue" | "Yellow" | "Green" | "Orange" | "Purple";
 
@@ -128,6 +129,7 @@ export function ColorHuntGame() {
   const [stars, setStars] = useState(0);
   const [roundComplete, setRoundComplete] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
+  const startTime = useState<number>(() => Date.now())[0];
 
   const currentRound = rounds[roundIndex];
   const targetColor = currentRound.color;
@@ -163,11 +165,13 @@ export function ColorHuntGame() {
     setStars((value) => value + 1);
   };
 
-  const nextRound = () => {
+  const nextRound = async () => {
     if (roundIndex === rounds.length - 1) {
       setGameComplete(true);
       const currentKidStars = parseInt(localStorage.getItem("currentKidStars") || "0");
       localStorage.setItem("currentKidStars", (currentKidStars + stars).toString());
+      const scorePercent = Math.round((stars / rounds.length) * 100);
+      await submitGameProgress(scorePercent, startTime);
       return;
     }
 

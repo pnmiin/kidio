@@ -21,6 +21,7 @@ import {
   saveTeenTownResult,
 } from "../utils/numberLandProgress";
 import { speak, stopSpeech } from "../utils/speech";
+import { submitGameProgress } from "../utils/gameProgress";
 
 type TeenTownStep = "welcome" | "learn" | "game" | "complete";
 type TeenQuestion = {
@@ -89,6 +90,8 @@ export function TeenTownGame() {
     setStep("game");
   };
 
+  const startTime = useState<number>(() => Date.now())[0];
+
   const finishGame = async () => {
     stopSpeech();
     saveTeenTownResult(score);
@@ -96,6 +99,9 @@ export function TeenTownGame() {
     const earnedStars = getTeenTownStars(score);
     const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
     localStorage.setItem("currentKidStars", (currentStars + earnedStars).toString());
+
+    const scorePercent = Math.round((score / questions.length) * 100);
+    await submitGameProgress(scorePercent, startTime);
 
     setStep("complete");
   };

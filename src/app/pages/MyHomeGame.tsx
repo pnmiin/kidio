@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useDrag, useDrop } from "react-dnd";
 import { Check, Star, Play, RotateCcw } from "lucide-react";
 import { KidioPageHeader } from "../../components/KidioPageHeader";
+import { submitGameProgress } from "../utils/gameProgress";
 
 const ItemTypes = {
   FURNITURE: "furniture",
@@ -136,14 +137,16 @@ export function MyHomeGame() {
   const [isIntro, setIsIntro] = useState(true);
 
   const draggableItems = useMemo(() => shuffleArray(homeItems), []);
+  const startTime = useState<number>(() => Date.now())[0];
   const isCompleted = matchedIds.length === homeItems.length;
 
   useEffect(() => {
     if (isCompleted) {
       const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
       localStorage.setItem("currentKidStars", (currentStars + 5).toString());
+      submitGameProgress(100, startTime);
     }
-  }, [isCompleted]);
+  }, [isCompleted, startTime]);
 
   const handleDrop = (draggedId: string, targetId: string) => {
     if (matchedIds.includes(targetId)) return;

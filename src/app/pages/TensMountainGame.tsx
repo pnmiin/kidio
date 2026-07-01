@@ -22,6 +22,7 @@ import {
   saveTensMountainResult,
 } from "../utils/numberLandProgress";
 import { speak, stopSpeech } from "../utils/speech";
+import { submitGameProgress } from "../utils/gameProgress";
 
 type TensScreen = "welcome" | "learn" | "game" | "complete";
 type TensQuestion = {
@@ -129,6 +130,7 @@ export function TensMountainGame() {
   const [wrongChoice, setWrongChoice] = useState<number | null>(null);
   const [correctChoice, setCorrectChoice] = useState<number | null>(null);
   const lastSpokenChoiceRef = useRef<{ value: number; time: number } | null>(null);
+  const startTime = useState<number>(() => Date.now())[0];
 
   const learnNumber = tensNumbers[learnIndex];
   const mainQuestion = mainQuestions[questionIndex];
@@ -164,12 +166,14 @@ export function TensMountainGame() {
 
   const finishGame = async () => {
     stopSpeech();
-    setIsSpeaking(false);
     saveTensMountainResult(score);
 
     const earnedStars = getTensMountainStars(score);
     const currentStars = parseInt(localStorage.getItem("currentKidStars") || "0");
     localStorage.setItem("currentKidStars", (currentStars + earnedStars).toString());
+
+    const scorePercent = Math.round((score / mainQuestions.length) * 100);
+    await submitGameProgress(scorePercent, startTime);
 
     setScreen("complete");
   };
@@ -196,8 +200,7 @@ export function TensMountainGame() {
     stopSpeech();
 
     if (questionIndex === mainQuestions.length - 1) {
-      saveTensMountainResult(score);
-      setScreen("complete");
+      finishGame();
       return;
     }
 
